@@ -23,7 +23,7 @@
   | Nome de exibição | `Pc&P Desk` | `Pc&P Desk Equipe` |
   | Nome do binário | `pcep-desk` | `pcep-desk-equipe` |
   | Identificador (macOS/Linux) | `br.com.pcepcontabil.desk` | `br.com.pcepcontabil.desk.equipe` |
-- Valores embutidos vêm de variáveis de ambiente **na compilação**: `PCEP_VARIANTE`, `PCEP_SERVIDOR` (host ou host:porta do hbbs), `PCEP_CHAVE` (conteúdo de `id_ed25519.pub`, base64 de 32 bytes), `PCEP_API` (URL `http://` ou `https://` do painel). No CI vêm de *Repository variables* (`vars.PCEP_SERVIDOR`, `vars.PCEP_CHAVE`, `vars.PCEP_API`) — não são segredos.
+- Valores embutidos vêm de variáveis de ambiente **na compilação**: `PCEP_VARIANTE`, `PCEP_SERVIDOR` (SÓ o host — nome ou IPv4 —, sem porta; portas padrão 21116 e 21117), `PCEP_CHAVE` (conteúdo de `id_ed25519.pub`, base64 de 32 bytes), `PCEP_API` (URL `http://` ou `https://` do painel). No CI vêm de *Repository variables* (`vars.PCEP_SERVIDOR`, `vars.PCEP_CHAVE`, `vars.PCEP_API`) — não são segredos.
 - Um build de release **nunca** pode sair sem esses valores ou apontando para `rustdesk.com` (anti-objetivo da spec): o workflow falha antes de compilar.
 - Aceite: `approve-mode = click` fixado (OVERWRITE) nas duas variantes; o cliente também fixa `allow-only-conn-window-open = Y`. Sem senha permanente no cliente.
 - Verificação de atualização do upstream desligada (`enable-check-update = N`, `allow-auto-update = N`).
