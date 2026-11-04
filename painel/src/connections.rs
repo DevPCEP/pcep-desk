@@ -30,7 +30,8 @@ pub enum ConnEventKind {
 /// Aplica um evento ao histórico. Roda em transação própria (ou aninhada,
 /// se receber uma transação) e é idempotente para eventos fora de ordem:
 /// `Authorized` sem registro aberto cria um já autorizado, e `Close` sem
-/// registro aberto é ignorado.
+/// registro aberto é ignorado (limitação aceita: um `close` que chega antes de
+/// qualquer outro evento da conexão não deixa rastro no histórico).
 pub async fn apply_conn_event<'a, A>(db: A, ev: &ConnEvent, now: i64) -> sqlx::Result<()>
 where
     A: Acquire<'a, Database = Sqlite>,
@@ -38,17 +39,38 @@ where
     let mut tx = db.begin().await?;
     match &ev.kind {
         ConnEventKind::New { ip } => {
-            sqlx::query(
-                "INSERT INTO connections (peer_id, conn_id, session_id, ip, started_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5)",
+            // `new` atrasado: se um `authorized` já criou o registro aberto
+            // (sem ip), completa esse registro em vez de duplicar.
+            let merged = sqlx::query(
+                "UPDATE connections SET
+                   ip = ?4,
+                   session_id = CASE WHEN session_id = '' THEN ?3 ELSE session_id END
+                 WHERE id = (
+                   SELECT id FROM connections
+                   WHERE peer_id = ?1 AND conn_id = ?2 AND ended_at IS NULL
+                     AND ip = '' AND authorized_at IS NOT NULL
+                   ORDER BY started_at DESC, id DESC LIMIT 1)",
             )
             .bind(&ev.peer_id)
             .bind(ev.conn_id)
             .bind(&ev.session_id)
             .bind(ip)
-            .bind(now)
             .execute(&mut *tx)
-            .await?;
+            .await?
+            .rows_affected();
+            if merged == 0 {
+                sqlx::query(
+                    "INSERT INTO connections (peer_id, conn_id, session_id, ip, started_at)
+                     VALUES (?1, ?2, ?3, ?4, ?5)",
+                )
+                .bind(&ev.peer_id)
+                .bind(ev.conn_id)
+                .bind(&ev.session_id)
+                .bind(ip)
+                .bind(now)
+                .execute(&mut *tx)
+                .await?;
+            }
         }
         ConnEventKind::Authorized {
             operator_peer_id,
@@ -58,9 +80,9 @@ where
             let updated = sqlx::query(
                 "UPDATE connections SET
                    session_id = CASE WHEN ?3 = '' THEN session_id ELSE ?3 END,
-                   authorized_at = ?4, operator_peer_id = ?5, operator_name = ?6,
+                   authorized_at = COALESCE(authorized_at, ?4), operator_peer_id = ?5, operator_name = ?6,
                    conn_type = ?7,
-                   user_id = (SELECT user_id FROM user_devices WHERE peer_id = ?5)
+                   user_id = COALESCE((SELECT user_id FROM user_devices WHERE peer_id = ?5), user_id)
                  WHERE id = (
                    SELECT id FROM connections
                    WHERE peer_id = ?1 AND conn_id = ?2 AND ended_at IS NULL

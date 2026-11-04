@@ -5,7 +5,7 @@ use axum::{
     http::{Request, StatusCode},
 };
 use common::{TestApp, json_req, send, test_app};
-use painel::connections::{self, HistoryFilter, HistoryRow};
+use painel::connections::{self, ConnEvent, ConnEventKind, HistoryFilter, HistoryRow};
 use painel::users;
 use serde_json::{Value, json};
 use sqlx::Row;
@@ -373,4 +373,58 @@ async fn query_filters() {
         .await
         .unwrap();
     assert_eq!(one.len(), 1);
+}
+
+#[tokio::test]
+async fn authorized_then_new_then_close_single_record() {
+    let app = test_app().await;
+    post_ok(&app, "/api/audit/conn", authorized_ev("111222333", 7, "987654321")).await;
+    post_ok(&app, "/api/audit/conn", new_ev("111222333", 7)).await;
+    post_ok(&app, "/api/audit/conn", close_ev("111222333", 7)).await;
+
+    assert_eq!(count(&app, "connections").await, 1);
+    let rows = all_rows(&app).await;
+    assert_eq!(rows[0].ip, "200.1.2.3");
+    assert!(rows[0].authorized_at.is_some());
+    assert!(rows[0].ended_at.is_some());
+    assert_eq!(connections::status_label(&rows[0]), "Conectado");
+
+    // Uma nova conexão com o mesmo conn_id depois do close é outro registro.
+    post_ok(&app, "/api/audit/conn", new_ev("111222333", 7)).await;
+    assert_eq!(count(&app, "connections").await, 2);
+}
+
+#[tokio::test]
+async fn authorized_repeated_keeps_first_time_and_user() {
+    let app = test_app().await;
+    let maria = users::create(&app.pool, "maria", "Maria Silva", "senha-forte-123", false)
+        .await
+        .unwrap();
+    sqlx::query("INSERT INTO user_devices (peer_id, user_id, uuid, last_login_at) VALUES ('987654321', ?, '', 1)")
+        .bind(maria)
+        .execute(&app.pool)
+        .await
+        .unwrap();
+    let ev = |operator: &str| ConnEvent {
+        peer_id: "111222333".into(),
+        conn_id: 7,
+        session_id: "1".into(),
+        kind: ConnEventKind::Authorized {
+            operator_peer_id: operator.into(),
+            operator_name: "Maria".into(),
+            conn_type: Some(0),
+        },
+    };
+    connections::apply_conn_event(&app.pool, &ev("987654321"), 100).await.unwrap();
+    // Reenvio sem nonce, com operador desconhecido e horário posterior.
+    connections::apply_conn_event(&app.pool, &ev("000000000"), 200).await.unwrap();
+
+    assert_eq!(count(&app, "connections").await, 1);
+    let (authorized_at, user_id): (i64, Option<i64>) =
+        sqlx::query_as("SELECT authorized_at, user_id FROM connections")
+            .fetch_one(&app.pool)
+            .await
+            .unwrap();
+    assert_eq!(authorized_at, 100);
+    assert_eq!(user_id, Some(maria));
 }
