@@ -234,6 +234,9 @@ verifica "ab/peers do catálogo compartilhado traz o alias \"${ALIAS_ESPERADO}\"
 
 # ------------------------------------------------- histórico (audit do cliente)
 echo "== Histórico: conexão aceita e conexão recusada"
+# O painel só aceita audit/conn de quem mandou heartbeat há pouco, do mesmo IP (aqui 127.0.0.1).
+chama POST /api/heartbeat "{\"id\":\"${ID_CLIENTE}\",\"uuid\":\"dXVpZC1jbGllbnRl\",\"ver\":\"1004005\"}"
+verifica "heartbeat do cliente antes do audit (200)" test "${STATUS}" = 200
 chama POST /api/audit/conn "{\"id\":\"${ID_CLIENTE}\",\"uuid\":\"dXVpZC1jbGllbnRl\",\"conn_id\":7,\"session_id\":1,\"action\":\"new\",\"ip\":\"200.1.2.3\"}"
 verifica "audit new (200, corpo vazio)" bash -c "[ '${STATUS}' = 200 ] && [ ! -s '${CORPO}' ]"
 chama POST /api/audit/conn "{\"id\":\"${ID_CLIENTE}\",\"uuid\":\"dXVpZC1jbGllbnRl\",\"conn_id\":7,\"session_id\":1,\"peer\":[\"${ID_COLAB}\",\"${NOME_COLAB}\"],\"type\":0}"
