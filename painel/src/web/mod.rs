@@ -1,6 +1,7 @@
 //! Painel web: HTML renderizado no servidor (Askama) com htmx.
 
 pub mod clients;
+pub mod downloads;
 pub mod format;
 pub mod history;
 pub mod login;
@@ -30,6 +31,7 @@ pub fn router(state: AppState) -> Router<AppState> {
     Router::new()
         .route("/", get(|| async { axum::response::Redirect::to("/clientes") }))
         .merge(clients::router())
+        .merge(downloads::router())
         .merge(history::router())
         .merge(login::router())
         .merge(users::router())

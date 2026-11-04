@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Baixar – Pc&amp;P Desk</title>
+  <link rel="stylesheet" href="/static/painel.css">
+</head>
+<body>
+  <header class="topo">
+    <span class="marca">Pc&amp;P Desk</span>
+    <nav class="menu" aria-label="Menu"><a href="/clientes">Painel do escritório</a></nav>
+  </header>
+  <main class="conteudo">
+    <h1>Baixar o Pc&amp;P Desk</h1>
+    <p class="ajuda">Escolha a versão do seu computador. Depois de baixar, abra o arquivo e siga as instruções abaixo.</p>
+
+    <section class="cartao secao-download">
+      <h2>Para clientes (Pc&amp;P Desk)</h2>
+      <ul class="downloads">
+        {% for item in cliente %}
+        <li>
+          <a class="botao" href="{{ item.url }}">{{ item.rotulo }}</a>
+          <p class="ajuda">{{ item.ajuda }}</p>
+        </li>
+        {% endfor %}
+      </ul>
+    </section>
+
+    <section class="cartao secao-download">
+      <h2>Para a equipe (Pc&amp;P Desk Equipe)</h2>
+      <ul class="downloads">
+        {% for item in equipe %}
+        <li>
+          <a class="botao" href="{{ item.url }}">{{ item.rotulo }}</a>
+          <p class="ajuda">{{ item.ajuda }}</p>
+        </li>
+        {% endfor %}
+      </ul>
+    </section>
+
+    <p class="ajuda"><a href="{{ source_url }}">Código-fonte</a></p>
+  </main>
+</body>
+</html>

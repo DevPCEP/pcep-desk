@@ -1,4 +1,4 @@
-//! PCEP Desk: painel e API compatível com o RustDesk.
+//! Pc&P Desk: painel e API compatível com o RustDesk.
 
 pub mod addressbook;
 pub mod api;

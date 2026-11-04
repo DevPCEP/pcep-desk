@@ -1,4 +1,4 @@
-// PCEP Desk: botão "Copiar" do código de conexão e filtro simples de select.
+// Pc&P Desk: botão "Copiar" do código de conexão e filtro simples de select.
 (function () {
   "use strict";
 

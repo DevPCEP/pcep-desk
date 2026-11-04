@@ -3,18 +3,19 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}Painel{% endblock %} – PCEP Desk</title>
+  <title>{% block title %}Painel{% endblock %} – Pc&amp;P Desk</title>
   <link rel="stylesheet" href="/static/painel.css">
   <script src="/static/htmx.min.js" defer></script>
   <script src="/static/painel.js" defer></script>
 </head>
 <body>
   <header class="topo">
-    <a class="marca" href="/clientes">PCEP Desk</a>
+    <a class="marca" href="/clientes">Pc&amp;P Desk</a>
     <nav class="menu" aria-label="Menu principal">
       <a href="/clientes"{% if active == "clientes" %} class="ativo" aria-current="page"{% endif %}>Clientes</a>
       <a href="/historico"{% if active == "historico" %} class="ativo" aria-current="page"{% endif %}>Histórico</a>
       <a href="/nao-vinculados"{% if active == "nao-vinculados" %} class="ativo" aria-current="page"{% endif %}>Não vinculados</a>
+      <a href="/baixar">Baixar</a>
       {% if user.is_admin %}
       <a href="/colaboradores"{% if active == "colaboradores" %} class="ativo" aria-current="page"{% endif %}>Colaboradores</a>
       {% endif %}

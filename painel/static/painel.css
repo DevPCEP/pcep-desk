@@ -1,4 +1,4 @@
-/* PCEP Desk: estilo simples, legível e sem dependências. */
+/* Pc&P Desk: estilo simples, legível e sem dependências. */
 :root {
   --fundo: #f4f6f8;
   --texto: #14202b;
@@ -224,3 +224,9 @@ h2 { font-size: 1.25rem; margin: 1.5rem 0 0.75rem; }
   background: #fff;
   color: var(--texto);
 }
+
+/* Página pública de download */
+.downloads { list-style: none; margin: 0; padding: 0; display: grid; gap: 1rem; }
+.downloads .botao { display: inline-block; text-decoration: none; }
+.secao-download { margin-top: 1.5rem; }
+.secao-download h2 { margin-top: 0; }
