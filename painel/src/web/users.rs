@@ -87,7 +87,7 @@ struct PasswordForm {
 }
 
 /// Erro interno: registra e responde 500 sem detalhes.
-fn internal(e: impl std::fmt::Display) -> Response {
+pub(super) fn internal(e: impl std::fmt::Display) -> Response {
     tracing::error!("erro interno no painel: {e}");
     (StatusCode::INTERNAL_SERVER_ERROR, "Erro interno").into_response()
 }

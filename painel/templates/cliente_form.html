@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}{% if editing.is_some() %}Editar cliente{% else %}Novo cliente{% endif %}{% endblock %}
+{% block content %}
+<h1>{% if editing.is_some() %}Editar cliente{% else %}Novo cliente{% endif %}</h1>
+{% if let Some(msg) = error %}
+<p class="erro" role="alert">{{ msg }}</p>
+{% endif %}
+<form class="cartao formulario" method="post" action="{% if let Some(id) = editing %}/clientes/{{ id }}{% else %}/clientes{% endif %}">
+  <label for="nome">Nome do cliente</label>
+  <input id="nome" name="nome" type="text" value="{{ nome }}" maxlength="120" autocomplete="off" autofocus required>
+
+  <label for="documento">CNPJ ou CPF (opcional)</label>
+  <input id="documento" name="documento" type="text" value="{{ documento }}" maxlength="20" autocomplete="off">
+
+  <label for="observacao">Observação (opcional)</label>
+  <textarea id="observacao" name="observacao" rows="4" maxlength="1000">{{ observacao }}</textarea>
+
+  <div class="botoes">
+    <button type="submit" class="botao">Salvar</button>
+    <a class="botao secundario" href="{% if let Some(id) = editing %}/clientes/{{ id }}{% else %}/clientes{% endif %}">Cancelar</a>
+  </div>
+</form>
+{% endblock %}

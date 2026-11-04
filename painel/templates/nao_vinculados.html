@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Não vinculados{% endblock %}
+{% block content %}
+<div class="cabecalho-pagina">
+  <h1>Não vinculados</h1>
+</div>
+<p class="ajuda">Computadores que já falaram com o servidor, mas ainda não foram cadastrados em nenhum cliente.</p>
+{% if devices.is_empty() %}
+<p class="aviso">Nenhum dispositivo aguardando vínculo.</p>
+{% else %}
+<table class="tabela">
+  <thead>
+    <tr>
+      <th>Código</th>
+      <th>Computador</th>
+      <th>Sistema</th>
+      <th>Situação</th>
+      <th>Visto por último</th>
+      <th>Ações</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for d in devices %}
+    <tr>
+      <td><span class="codigo">{{ d.code_display }}</span></td>
+      <td>{{ d.hostname }}</td>
+      <td>{{ d.os }}</td>
+      <td>{% if d.online %}<span class="status on"><span class="bolinha" aria-hidden="true"></span>Online</span>{% else %}<span class="status off"><span class="bolinha" aria-hidden="true"></span>Offline</span>{% endif %}</td>
+      <td>{{ d.last_seen }}</td>
+      <td class="acoes"><a class="botao" href="/nao-vinculados/{{ d.peer_id }}/vincular">Vincular</a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+{% endblock %}

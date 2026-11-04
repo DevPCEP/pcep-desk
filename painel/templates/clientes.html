@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Clientes{% endblock %}
+{% block content %}
+<div class="cabecalho-pagina">
+  <h1>Clientes</h1>
+  <a class="botao" href="/clientes/novo">Novo cliente</a>
+</div>
+<form class="busca" role="search" method="get" action="/clientes">
+  <label for="q">Buscar cliente</label>
+  <input id="q" name="q" type="search" value="{{ q }}" placeholder="Nome, documento, rótulo ou código do computador" autocomplete="off" autofocus
+         hx-get="/clientes/lista" hx-trigger="input changed delay:300ms, search" hx-target="#lista-clientes" hx-push-url="false">
+  <noscript><button type="submit" class="botao">Buscar</button></noscript>
+</form>
+<div id="lista-clientes" aria-live="polite">
+  {% include "clientes_lista.html" %}
+</div>
+{% endblock %}

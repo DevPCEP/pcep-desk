@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<h1>{{ title }}</h1>
+{% if let Some(name) = client_name %}
+<p>Cliente: <strong>{{ name }}</strong></p>
+{% endif %}
+{% if let Some(msg) = error %}
+<p class="erro" role="alert">{{ msg }}</p>
+{% endif %}
+<form class="cartao formulario" method="post" action="{{ action }}">
+  {% if let Some(list) = pick_from %}
+  <label for="filtro-cliente">Buscar cliente</label>
+  <input id="filtro-cliente" type="search" data-filtrar="cliente_id" placeholder="Digite parte do nome" autocomplete="off">
+  <label for="cliente_id">Cliente</label>
+  <select id="cliente_id" name="cliente_id" required>
+    <option value="">Selecione o cliente</option>
+    {% for c in list %}
+    <option value="{{ c.id }}"{% if c.id == cliente_id %} selected{% endif %}>{{ c.name }}</option>
+    {% endfor %}
+  </select>
+  {% endif %}
+
+  <label for="codigo">Código de conexão</label>
+  {% if fixed_code %}
+  <input id="codigo" type="text" value="{{ code_display }}" disabled>
+  <p class="ajuda">O código não pode ser alterado. Para trocar, remova o computador e cadastre de novo.</p>
+  {% else %}
+  <input id="codigo" name="codigo" type="text" value="{{ codigo }}" inputmode="numeric" autocomplete="off" required>
+  <p class="ajuda">Pode digitar com espaços, ex.: 123 456 789.</p>
+  {% endif %}
+
+  <label for="rotulo">Rótulo do computador</label>
+  <input id="rotulo" name="rotulo" type="text" value="{{ rotulo }}" maxlength="60" autocomplete="off" required>
+  <p class="ajuda">Como a equipe reconhece esta máquina, ex.: Caixa, Recepção, Servidor.</p>
+
+  <label for="observacao">Observação (opcional)</label>
+  <textarea id="observacao" name="observacao" rows="3" maxlength="1000">{{ observacao }}</textarea>
+
+  <div class="botoes">
+    <button type="submit" class="botao">Salvar</button>
+    <a class="botao secundario" href="{{ cancel }}">Cancelar</a>
+  </div>
+</form>
+{% endblock %}

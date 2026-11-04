@@ -279,6 +279,13 @@ pub async fn remove_computer(pool: &SqlitePool, id: i64) -> sqlx::Result<()> {
     Ok(())
 }
 
+pub async fn get_computer(pool: &SqlitePool, id: i64) -> sqlx::Result<Option<Computer>> {
+    sqlx::query_as("SELECT id, client_id, peer_id, label, note FROM computers WHERE id = ?")
+        .bind(id)
+        .fetch_optional(pool)
+        .await
+}
+
 pub async fn list_computers(pool: &SqlitePool, client_id: i64) -> sqlx::Result<Vec<Computer>> {
     sqlx::query_as(
         "SELECT id, client_id, peer_id, label, note FROM computers

@@ -50,7 +50,9 @@ pub fn clear_cookie(secure: bool) -> String {
 }
 
 /// Usuário autenticado pelo cookie de sessão web. Sem sessão válida,
-/// redireciona (303) para `/entrar`.
+/// redireciona (303) para `/entrar`; em requisição htmx (`HX-Request`)
+/// responde 200 com `HX-Redirect`, para a página de login não ser injetada
+/// no trecho da página que o htmx atualiza.
 pub struct WebUser(pub User);
 
 impl FromRequestParts<AppState> for WebUser {
@@ -60,7 +62,14 @@ impl FromRequestParts<AppState> for WebUser {
         parts: &mut Parts,
         state: &AppState,
     ) -> Result<Self, Self::Rejection> {
-        let to_login = || Redirect::to("/entrar").into_response();
+        let htmx = parts.headers.contains_key("hx-request");
+        let to_login = || {
+            if htmx {
+                (StatusCode::OK, [("hx-redirect", "/entrar")]).into_response()
+            } else {
+                Redirect::to("/entrar").into_response()
+            }
+        };
         let token = session_token(&parts.headers).ok_or_else(to_login)?;
         match resolve_token(&state.pool, token, TokenKind::Web).await {
             Ok(Some(user)) => Ok(WebUser(user)),

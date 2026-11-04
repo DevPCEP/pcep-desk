@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}{{ client.name }}{% endblock %}
+{% block content %}
+<div class="cabecalho-pagina">
+  <h1>{{ client.name }}</h1>
+  <div class="acoes">
+    <a class="botao secundario" href="/clientes/{{ client.id }}/editar">Editar cliente</a>
+    {% if user.is_admin %}
+    <form method="post" action="/clientes/{{ client.id }}/excluir" hx-boost="true" hx-confirm="Excluir o cliente {{ client.name }} e todos os computadores cadastrados nele? Esta ação não pode ser desfeita.">
+      <button type="submit" class="botao perigo">Excluir cliente</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+<dl class="dados">
+  <dt>Documento</dt>
+  <dd>{% if client.document.is_empty() %}—{% else %}{{ client.document }}{% endif %}</dd>
+  <dt>Observação</dt>
+  <dd class="texto-livre">{% if client.note.is_empty() %}—{% else %}{{ client.note }}{% endif %}</dd>
+</dl>
+
+<div class="cabecalho-pagina">
+  <h2>Computadores</h2>
+  <a class="botao" href="/clientes/{{ client.id }}/computadores/novo">Adicionar computador</a>
+</div>
+{% if computers.is_empty() %}
+<p class="aviso">Nenhum computador cadastrado neste cliente.</p>
+{% else %}
+<table class="tabela">
+  <thead>
+    <tr>
+      <th>Computador</th>
+      <th>Código de conexão</th>
+      <th>Situação</th>
+      <th>Sistema</th>
+      <th>Visto por último</th>
+      <th>Ações</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for c in computers %}
+    <tr>
+      <td>
+        <strong>{{ c.label }}</strong>
+        {% if !c.hostname.is_empty() %}<br><span class="ajuda">{{ c.hostname }}{% if !c.username.is_empty() %} · usuário {{ c.username }}{% endif %}</span>{% endif %}
+        {% if !c.note.is_empty() %}<br><span class="ajuda texto-livre">{{ c.note }}</span>{% endif %}
+      </td>
+      <td>
+        <span class="codigo">{{ c.code_display }}</span>
+        <button type="button" class="botao secundario copiar" data-copiar="{{ c.peer_id }}">Copiar</button>
+      </td>
+      <td>{% if c.online %}<span class="status on"><span class="bolinha" aria-hidden="true"></span>Online</span>{% else %}<span class="status off"><span class="bolinha" aria-hidden="true"></span>Offline</span>{% endif %}</td>
+      <td>{% if c.os.is_empty() %}—{% else %}{{ c.os }}{% endif %}</td>
+      <td>{% if let Some(ts) = c.last_seen %}{{ ts }}{% else %}Nunca conectou ao servidor{% endif %}</td>
+      <td class="acoes">
+        <a class="botao secundario" href="/computadores/{{ c.id }}/editar">Editar</a>
+        <form method="post" action="/computadores/{{ c.id }}/remover" hx-boost="true" hx-confirm="Remover o computador {{ c.label }} deste cliente?">
+          <button type="submit" class="botao perigo">Remover</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+<h2>Últimas conexões</h2>
+{% if history.is_empty() %}
+<p class="aviso">Nenhuma conexão registrada para este cliente.</p>
+{% else %}
+<table class="tabela">
+  <thead>
+    <tr>
+      <th>Início</th>
+      <th>Colaborador</th>
+      <th>Computador</th>
+      <th>Situação</th>
+      <th>Duração</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for h in history %}
+    <tr>
+      <td>{{ h.started }}</td>
+      <td>{{ h.operator }}</td>
+      <td>{{ h.computer }}</td>
+      <td>{{ h.status }}</td>
+      <td>{{ h.duration }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+{% endblock %}

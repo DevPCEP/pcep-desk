@@ -163,3 +163,41 @@ input[type="checkbox"] { width: 1.2rem; height: 1.2rem; }
   .conteudo { padding: 1rem; }
   .tabela { display: block; overflow-x: auto; }
 }
+
+/* Clientes e computadores */
+input[type="search"], textarea, select {
+  display: block;
+  width: 100%;
+  margin-top: 0.3rem;
+  padding: 0.6rem 0.7rem;
+  border: 2px solid #8a99a6;
+  border-radius: 6px;
+  font: inherit;
+  background: #fff;
+  color: var(--texto);
+}
+textarea { resize: vertical; }
+.busca { margin-bottom: 1rem; max-width: 40rem; }
+.busca label { margin-top: 0; }
+h2 { font-size: 1.25rem; margin: 1.5rem 0 0.75rem; }
+.cabecalho-pagina h2 { margin: 0; }
+.tabela td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.texto-livre { white-space: pre-wrap; }
+.dados { display: grid; grid-template-columns: max-content 1fr; gap: 0.3rem 1.25rem; margin: 0 0 1rem; }
+.dados dt { font-weight: 600; color: var(--suave); }
+.dados dd { margin: 0; }
+.codigo {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  margin-right: 0.5rem;
+  white-space: nowrap;
+}
+.copiar { padding: 0.3rem 0.7rem; font-size: 0.95rem; }
+.status { display: inline-flex; align-items: center; gap: 0.4rem; font-weight: 600; }
+.status .bolinha { width: 0.8rem; height: 0.8rem; border-radius: 50%; display: inline-block; }
+.status.on { color: var(--ok); }
+.status.on .bolinha { background: var(--ok); }
+.status.off { color: var(--suave); }
+.status.off .bolinha { background: #fff; border: 2px solid var(--suave); }

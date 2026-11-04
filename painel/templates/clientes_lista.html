@@ -1,0 +1,27 @@
+{% if rows.is_empty() %}
+<p class="aviso">{% if q.trim().is_empty() %}Nenhum cliente cadastrado ainda.{% else %}Nenhum cliente encontrado para essa busca.{% endif %}</p>
+{% else %}
+<table class="tabela">
+  <thead>
+    <tr>
+      <th>Cliente</th>
+      <th>Documento</th>
+      <th>Computadores</th>
+      <th>Online agora</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in rows %}
+    <tr>
+      <td><a href="/clientes/{{ r.id }}">{{ r.name }}</a></td>
+      <td>{{ r.document }}</td>
+      <td class="num">{{ r.computers }}</td>
+      <td class="num">{{ r.online }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% if truncated %}
+<p class="ajuda">Mostrando os primeiros {{ rows.len() }} clientes. Use a busca para refinar.</p>
+{% endif %}
+{% endif %}
