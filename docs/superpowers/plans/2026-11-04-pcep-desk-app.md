@@ -21,7 +21,7 @@
   | `PCEP_VARIANTE` | `cliente` | `colaborador` |
   | APP_NAME (técnico, ASCII) | `PcepDesk` | `PcepDeskEquipe` |
   | Nome de exibição | `Pc&P Desk` | `Pc&P Desk Equipe` |
-  | Nome do binário | `pcep-desk` | `pcep-desk-equipe` |
+  | Nome do binário | `pcepdesk` | `pcepdeskequipe` |
   | Identificador (macOS/Linux) | `br.com.pcepcontabil.desk` | `br.com.pcepcontabil.desk.equipe` |
 - Valores embutidos vêm de variáveis de ambiente **na compilação**: `PCEP_VARIANTE`, `PCEP_SERVIDOR` (SÓ o host — nome ou IPv4 —, sem porta; portas padrão 21116 e 21117), `PCEP_CHAVE` (conteúdo de `id_ed25519.pub`, base64 de 32 bytes), `PCEP_API` (URL `http://` ou `https://` do painel). No CI vêm de *Repository variables* (`vars.PCEP_SERVIDOR`, `vars.PCEP_CHAVE`, `vars.PCEP_API`) — não são segredos.
 - Um build de release **nunca** pode sair sem esses valores ou apontando para `rustdesk.com` (anti-objetivo da spec): o workflow falha antes de compilar.
@@ -144,7 +144,7 @@ Modificados (ganchos): Cargo.toml (dependência pcep), src/common.rs, src/lang.r
 - Remover/pular: assinatura (não há certificados — anotar no LEIAME como pendência), Android, iOS, web, sciter, flatpak, update metadata.
 - Entregáveis (nomes fixos, sem versão, para links estáveis do painel):
   - Windows: `PcepDesk-Windows-x64.exe` (cliente) e `PcepDeskEquipe-Windows-x64.exe` (colaborador) — o executável portátil único que o upstream gera com `libs/portable`.
-  - Linux: `PcepDesk-Linux-x86_64.AppImage` (cliente), `PcepDeskEquipe-Linux-x86_64.deb` (colaborador).
+  - Linux: `PcepDesk-Linux-x86_64.AppImage` (cliente) e `PcepDeskEquipe-Linux-x86_64.AppImage` (colaborador); o `.deb` fica como pendência.
   - macOS: `PcepDesk-macOS-<arch>.dmg`, `PcepDeskEquipe-macOS-<arch>.dmg` (`arch` = `x64` ou `arm64`), sem assinatura.
 - Em tag `pcep-v*`: criar release com todos os entregáveis (`softprops/action-gh-release`, como o upstream) e texto "Código-fonte: https://github.com/DevPCEP/pcep-desk-app".
 
