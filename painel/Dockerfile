@@ -1,5 +1,5 @@
 # Estágio 1: compila o painel em modo release.
-FROM rust:1.95-slim AS build
+FROM rust:1.95-slim-trixie AS build
 RUN apt-get update \
     && apt-get install -y --no-install-recommends build-essential \
     && rm -rf /var/lib/apt/lists/*
@@ -11,7 +11,7 @@ COPY src ./src
 RUN cargo build --release --locked
 
 # Estágio 2: imagem final enxuta, sem ferramentas de compilação.
-FROM debian:stable-slim
+FROM debian:trixie-slim
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates \
     && rm -rf /var/lib/apt/lists/* \

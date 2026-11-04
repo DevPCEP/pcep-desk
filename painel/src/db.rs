@@ -56,3 +56,22 @@ pub async fn backup(pool: &SqlitePool, dest: &std::path::Path) -> anyhow::Result
         .with_context(|| format!("gravando backup em {}", dest.display()))?;
     Ok(())
 }
+
+/// Faz o backup do banco indicado em `url`, recusando se o arquivo não existir
+/// (para nunca criar um banco vazio por engano, por exemplo com `PAINEL_DB` errada).
+pub async fn backup_from_url(url: &str, dest: &std::path::Path) -> anyhow::Result<()> {
+    let options = SqliteConnectOptions::from_str(url)
+        .with_context(|| format!("URL de banco inválida: {url}"))?;
+    let in_memory = url.contains(":memory:") || url.contains("mode=memory");
+    if in_memory {
+        anyhow::bail!("backup não se aplica a banco em memória");
+    }
+    let file = options.get_filename();
+    if !file.exists() {
+        anyhow::bail!("o banco de dados não existe: {}", file.display());
+    }
+    let pool = connect(url).await?;
+    let resultado = backup(&pool, dest).await;
+    pool.close().await;
+    resultado
+}

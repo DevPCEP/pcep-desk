@@ -77,3 +77,28 @@ async fn backup_creates_file() {
     origem.close().await;
     std::fs::remove_dir_all(&dir).unwrap();
 }
+
+#[tokio::test]
+async fn backup_refuses_missing_database() {
+    let dir = std::env::temp_dir().join(format!(
+        "painel-backup-missing-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    std::fs::create_dir_all(&dir).unwrap();
+    let banco = dir.join("inexistente.db");
+    let dest = dir.join("copia.db");
+
+    let err = db::backup_from_url(&format!("sqlite://{}", banco.display()), &dest)
+        .await
+        .unwrap_err();
+    assert!(err.to_string().contains("não existe"), "{err}");
+    // Nada foi criado: nem banco vazio, nem backup.
+    assert!(!banco.exists());
+    assert!(!dest.exists());
+
+    std::fs::remove_dir_all(&dir).unwrap();
+}

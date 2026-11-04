@@ -10,7 +10,7 @@ Este diretório tem tudo o que é preciso para colocar no ar:
 
 ## 1. Requisitos
 
-- Um servidor Linux (VPS ou máquina no escritório) com **Docker** e **Docker Compose v2** instalados (`docker compose version` deve funcionar).
+- Um servidor Linux (VPS ou máquina no escritório) com **Docker** e **Docker Compose v2** instalados. Instalação oficial: <https://docs.docker.com/engine/install/>. Para conferir, rode `docker compose version`: deve mostrar a versão (2.x) sem erro.
 - Um **domínio** (por exemplo `desk.pcepcontabil.com.br`) cujo DNS você consiga editar.
 - `git` para baixar e atualizar o projeto.
 
@@ -32,7 +32,7 @@ Libere no firewall do servidor (e, se for o servidor do escritório, também no 
   - se o IP mudar, use um serviço de **DDNS** (por exemplo No-IP ou DuckDNS), que dá um nome como `escritorio.ddns.net`, e crie um registro **CNAME** do seu domínio para esse nome;
   - no **roteador**, faça o redirecionamento (port forwarding) das portas da tabela acima para o IP interno do servidor, e deixe esse IP interno fixo.
 
-Confira antes de continuar: `ping desk.pcepcontabil.com.br` deve mostrar o IP certo. Sem o DNS correto o Caddy não consegue emitir o certificado.
+Confira antes de continuar: `dig +short desk.pcepcontabil.com.br` (ou `nslookup desk.pcepcontabil.com.br`) deve mostrar o IP certo. Não use `ping` para isso: ele pode ser bloqueado e não prova que o DNS está certo. Sem o DNS correto o Caddy não consegue emitir o certificado.
 
 ## 4. Configuração
 
@@ -70,7 +70,15 @@ A primeira vez demora, porque o painel é compilado. Para ver os logs: `docker c
 docker compose exec painel painel criar-admin --usuario franklin --nome "Franklin"
 ```
 
-O comando pede a senha (digite e tecle Enter). Depois, abra `https://<seu-domínio>` no navegador e entre com esse usuário. Os demais colaboradores são cadastrados dentro do painel.
+O comando pede a senha (digite e tecle Enter). **Atenção:** a senha digitada aparece na tela. Se preferir não digitá-la ali, informe-a por variável de ambiente:
+
+```bash
+docker compose exec -e PAINEL_SENHA_ADMIN='sua-senha-aqui' painel painel criar-admin --usuario franklin --nome "Franklin"
+```
+
+(Nesse caso a senha fica no histórico do terminal; apague-o depois com `history -c`.)
+
+Depois de criar, abra `https://<seu-domínio>` no navegador e entre com esse usuário. Os demais colaboradores são cadastrados dentro do painel.
 
 ## 7. Onde fica a chave pública
 
@@ -100,9 +108,11 @@ Depois clique em **OK**. Se o indicador de status na tela inicial ficar verde ("
 ./backup.sh
 ```
 
-O script grava, em `dados/painel/backups/`, uma cópia do banco (`painel-AAAAMMDD-HHMMSS.db`) e das chaves do servidor RustDesk (`id_ed25519-AAAAMMDD-HHMMSS` e `.pub`), e apaga o que tiver mais de 14 dias. Se ele reclamar de permissão ao copiar a chave, rode com `sudo ./backup.sh`.
+**Rode o backup sempre como root** (`sudo ./backup.sh`, ou pelo crontab do root). As chaves do RustDesk em `dados/rustdesk/` pertencem ao root; sem root o script não consegue copiá-las e termina com erro (o banco e a limpeza dos backups antigos continuam sendo feitos, mas o código de saída é 1).
 
-Para rodar todo dia às 2h, adicione ao `crontab -e`:
+O script grava, em `dados/painel/backups/` (pasta com permissão 700, arquivos 600), uma cópia do banco (`painel-AAAAMMDD-HHMMSS.db`) e das chaves do servidor RustDesk (`id_ed25519-AAAAMMDD-HHMMSS` e `.pub`), e apaga o que tiver mais de 14 dias. Se alguma etapa falhar, ele avisa e termina com código diferente de zero.
+
+Para rodar todo dia às 2h, abra o crontab do **root** com `sudo crontab -e` e adicione:
 
 ```
 0 2 * * * /caminho/para/pcep-desk/servidor/backup.sh >> /var/log/pcep-backup.log 2>&1
@@ -116,6 +126,7 @@ Copie também a pasta `dados/painel/backups/` para **outro lugar** (outro comput
 docker compose stop painel
 rm -f dados/painel/painel.db-wal dados/painel/painel.db-shm
 cp dados/painel/backups/painel-AAAAMMDD-HHMMSS.db dados/painel/painel.db
+sudo chown PAINEL_UID:PAINEL_GID dados/painel/painel.db   # use os números do seu .env (ex.: 1000:1000)
 docker compose start painel
 ```
 

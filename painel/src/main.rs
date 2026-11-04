@@ -70,9 +70,7 @@ async fn criar_admin(args: &[String]) -> anyhow::Result<()> {
 async fn backup(args: &[String]) -> anyhow::Result<()> {
     let destino = args.first().context("faltou o destino: painel backup <destino>")?;
     let config = Config::from_env()?;
-    let pool = db::connect(&config.db_url).await?;
-    db::backup(&pool, std::path::Path::new(destino)).await?;
-    pool.close().await;
+    db::backup_from_url(&config.db_url, std::path::Path::new(destino)).await?;
     println!("Backup gravado em {destino}");
     Ok(())
 }
