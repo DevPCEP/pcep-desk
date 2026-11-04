@@ -164,7 +164,7 @@ async fn heartbeat_keeps_sysinfo_data() {
     )
     .await;
     let first = devices::get(&app.pool, "7").await.unwrap().unwrap();
-    devices::touch(&app.pool, "7", "u", "1004005", first.last_seen_at + 100)
+    devices::touch(&app.pool, "7", "u", "1004005", "", first.last_seen_at + 100)
         .await
         .unwrap();
     let d = devices::get(&app.pool, "7").await.unwrap().unwrap();
@@ -209,7 +209,7 @@ async fn heartbeat_rejects_garbage_and_oversize() {
 async fn unlinked_excludes_known() {
     let app = test_app().await;
     for (i, peer) in ["100", "200", "300"].iter().enumerate() {
-        devices::touch(&app.pool, peer, "", "1", 1000 + i as i64)
+        devices::touch(&app.pool, peer, "", "1", "", 1000 + i as i64)
             .await
             .unwrap();
     }
@@ -241,4 +241,42 @@ async fn unlinked_excludes_known() {
 fn is_online_window() {
     assert!(devices::is_online(1000, 1060));
     assert!(!devices::is_online(1000, 1061));
+}
+
+#[tokio::test]
+async fn heartbeat_records_origin_ip() {
+    let app = test_app().await;
+    // Com X-Forwarded-For vale o ÚLTIMO endereço (o acrescentado pelo Caddy).
+    common::heartbeat_from(&app, "111222333", "6.6.6.6, 203.0.113.7").await;
+    let ip: String = sqlx::query_scalar("SELECT last_ip FROM devices WHERE peer_id = '111222333'")
+        .fetch_one(&app.pool)
+        .await
+        .unwrap();
+    assert_eq!(ip, "203.0.113.7");
+
+    // Um novo heartbeat de outro IP substitui o anterior.
+    common::heartbeat_from(&app, "111222333", "198.51.100.9").await;
+    let ip: String = sqlx::query_scalar("SELECT last_ip FROM devices WHERE peer_id = '111222333'")
+        .fetch_one(&app.pool)
+        .await
+        .unwrap();
+    assert_eq!(ip, "198.51.100.9");
+
+    // Sysinfo não mexe no IP.
+    let (status, _, _) = send(
+        &app,
+        common::json_req_from(
+            "POST",
+            "/api/sysinfo",
+            json!({"id": "111222333", "hostname": "PC"}),
+            "7.7.7.7",
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    let ip: String = sqlx::query_scalar("SELECT last_ip FROM devices WHERE peer_id = '111222333'")
+        .fetch_one(&app.pool)
+        .await
+        .unwrap();
+    assert_eq!(ip, "198.51.100.9");
 }

@@ -30,32 +30,39 @@ pub struct SysInfo {
     pub version: String,
 }
 
+/// Janela, em segundos, em que o último heartbeat ainda autoriza eventos de histórico.
+const HEARTBEAT_WINDOW_SECS: i64 = 120;
+
 /// Online se o último sinal chegou há no máximo 60 segundos.
 pub fn is_online(last_seen_at: i64, now: i64) -> bool {
     now - last_seen_at <= ONLINE_WINDOW_SECS
 }
 
-/// Registra um sinal de vida: cria o dispositivo ou atualiza uuid, versão e
-/// `last_seen_at`, sem tocar nos dados de sysinfo. Valores vazios não
-/// sobrescrevem os já gravados.
+/// Registra um sinal de vida: cria o dispositivo ou atualiza uuid, versão,
+/// IP de origem e `last_seen_at`, sem tocar nos dados de sysinfo. Valores
+/// vazios de uuid/versão não sobrescrevem os já gravados; o IP é sempre
+/// substituído (vazio = origem desconhecida, que nunca valida o histórico).
 pub async fn touch(
     pool: &SqlitePool,
     peer_id: &str,
     uuid: &str,
     version: &str,
+    ip: &str,
     now: i64,
 ) -> sqlx::Result<()> {
     sqlx::query(
-        "INSERT INTO devices (peer_id, uuid, version, first_seen_at, last_seen_at)
-         VALUES (?1, ?2, ?3, ?4, ?4)
+        "INSERT INTO devices (peer_id, uuid, version, last_ip, first_seen_at, last_seen_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?5)
          ON CONFLICT(peer_id) DO UPDATE SET
            uuid = CASE WHEN excluded.uuid = '' THEN devices.uuid ELSE excluded.uuid END,
            version = CASE WHEN excluded.version = '' THEN devices.version ELSE excluded.version END,
+           last_ip = excluded.last_ip,
            last_seen_at = excluded.last_seen_at",
     )
     .bind(peer_id)
     .bind(uuid)
     .bind(version)
+    .bind(ip)
     .bind(now)
     .execute(pool)
     .await?;
@@ -98,6 +105,29 @@ pub async fn upsert_sysinfo(
     .execute(pool)
     .await?;
     Ok(())
+}
+
+/// O computador mandou heartbeat nos últimos 120 s, do mesmo IP `ip`? `ip`
+/// vazio (origem desconhecida) nunca confere.
+pub async fn has_recent_heartbeat(
+    pool: &SqlitePool,
+    peer_id: &str,
+    ip: &str,
+    now: i64,
+) -> sqlx::Result<bool> {
+    if ip.is_empty() {
+        return Ok(false);
+    }
+    sqlx::query_scalar(
+        "SELECT EXISTS(
+           SELECT 1 FROM devices
+           WHERE peer_id = ?1 AND last_ip = ?2 AND last_seen_at >= ?3)",
+    )
+    .bind(peer_id)
+    .bind(ip)
+    .bind(now - HEARTBEAT_WINDOW_SECS)
+    .fetch_one(pool)
+    .await
 }
 
 pub async fn get(pool: &SqlitePool, peer_id: &str) -> sqlx::Result<Option<Device>> {

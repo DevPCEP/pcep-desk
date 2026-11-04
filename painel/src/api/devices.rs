@@ -11,6 +11,7 @@ use axum::{
 use serde::{Deserialize, Deserializer};
 use serde_json::{Value, json};
 
+use super::extract::ClientIp;
 use crate::{
     clock,
     devices::{self, SysInfo},
@@ -97,12 +98,14 @@ pub(super) fn clean_peer_id(id: &str) -> Option<&str> {
 
 async fn heartbeat(
     State(st): State<AppState>,
+    ClientIp(ip): ClientIp,
     body: Result<Bytes, BytesRejection>,
 ) -> Result<Json<Value>, ApiError> {
     let req: HeartbeatBody = parse_body(body)?;
     let peer_id = clean_peer_id(&req.id).ok_or_else(invalid_request)?;
     let (uuid, ver) = (clean(&req.uuid), clean(&req.ver));
-    devices::touch(&st.pool, peer_id, &uuid, &ver, clock::now()).await?;
+    let ip = ip.unwrap_or_default();
+    devices::touch(&st.pool, peer_id, &uuid, &ver, &ip, clock::now()).await?;
     Ok(Json(json!({})))
 }
 

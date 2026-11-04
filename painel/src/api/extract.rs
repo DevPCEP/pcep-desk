@@ -1,5 +1,7 @@
+use std::{convert::Infallible, net::{IpAddr, SocketAddr}};
+
 use axum::{
-    extract::{FromRequest, FromRequestParts, Request, rejection::JsonRejection},
+    extract::{ConnectInfo, FromRequest, FromRequestParts, Request, rejection::JsonRejection},
     http::{HeaderMap, header, request::Parts},
 };
 use serde::de::DeserializeOwned;
@@ -62,5 +64,34 @@ fn rejection_message(rej: &JsonRejection) -> &'static str {
         JsonRejection::BytesRejection(_) => "Requisição grande demais",
         JsonRejection::MissingJsonContentType(_) => "Tipo de conteúdo inválido",
         _ => "Corpo da requisição inválido",
+    }
+}
+
+/// IP de origem da requisição, como texto normalizado (`None` se desconhecido).
+///
+/// Com `X-Forwarded-For`, vale o ÚLTIMO endereço da lista: o que o proxy
+/// (Caddy) acrescentou, e não o que o cliente declarou. Isso só é confiável
+/// porque o painel não é exposto diretamente: o acesso externo passa sempre
+/// pelo Caddy. Sem o cabeçalho, usa o IP da conexão (`ConnectInfo`).
+pub struct ClientIp(pub Option<String>);
+
+impl<S: Send + Sync> FromRequestParts<S> for ClientIp {
+    type Rejection = Infallible;
+
+    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
+        let forwarded = parts.headers.get_all("x-forwarded-for").iter().next_back();
+        let ip = match forwarded {
+            Some(value) => value
+                .to_str()
+                .ok()
+                .and_then(|v| v.rsplit(',').next())
+                .and_then(|last| last.trim().parse::<IpAddr>().ok())
+                .map(|ip| ip.to_string()),
+            None => parts
+                .extensions
+                .get::<ConnectInfo<SocketAddr>>()
+                .map(|ConnectInfo(addr)| addr.ip().to_string()),
+        };
+        Ok(ClientIp(ip))
     }
 }

@@ -88,8 +88,12 @@ async fn serve() -> anyhow::Result<()> {
         .await
         .with_context(|| format!("escutando em {bind}"))?;
     tracing::info!("painel escutando em {bind}");
-    axum::serve(listener, build_router(state))
-        .await
+    // `ConnectInfo` dá o IP da conexão quando não há `X-Forwarded-For` (heartbeat e audit).
+    axum::serve(
+        listener,
+        build_router(state).into_make_service_with_connect_info::<std::net::SocketAddr>(),
+    )
+    .await
         .context("servidor HTTP")?;
     Ok(())
 }

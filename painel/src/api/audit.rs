@@ -14,9 +14,13 @@ use axum::{
 use serde_json::Value;
 use sqlx::{Sqlite, Transaction};
 
-use super::devices::{clean_peer_id, invalid_request};
+use super::{
+    devices::{clean_peer_id, invalid_request},
+    extract::ClientIp,
+};
 use crate::{
     clock,
+    devices,
     connections::{self, ConnEvent, ConnEventKind},
     error::ApiError,
     state::AppState,
@@ -55,30 +59,41 @@ impl Kind {
 
 async fn audit_conn(
     State(st): State<AppState>,
+    ClientIp(ip): ClientIp,
     body: Result<Bytes, BytesRejection>,
 ) -> Result<StatusCode, ApiError> {
-    record(&st, body, Kind::Conn).await
+    record(&st, ip.as_deref(), body, Kind::Conn).await
 }
 
 async fn audit_file(
     State(st): State<AppState>,
+    ClientIp(ip): ClientIp,
     body: Result<Bytes, BytesRejection>,
 ) -> Result<StatusCode, ApiError> {
-    record(&st, body, Kind::File).await
+    record(&st, ip.as_deref(), body, Kind::File).await
 }
 
 async fn audit_alarm(
     State(st): State<AppState>,
+    ClientIp(ip): ClientIp,
     body: Result<Bytes, BytesRejection>,
 ) -> Result<StatusCode, ApiError> {
-    record(&st, body, Kind::Alarm).await
+    record(&st, ip.as_deref(), body, Kind::Alarm).await
 }
+
+/// Corpo gravado no lugar do evento `conn` recusado pela checagem de heartbeat.
+const REJECTED_BODY: &str = r#"{"rejeitado":"sem heartbeat recente do mesmo IP"}"#;
 
 /// Grava o evento bruto (com dedup por `nonce`) e, para `conn`, aplica ao
 /// histórico, tudo na mesma transação: se aplicar falhar, o `nonce` não fica
 /// marcado e o reenvio do app ainda funciona.
+///
+/// Eventos `conn` só valem se o computador mandou heartbeat há pouco, do mesmo
+/// IP de origem desta requisição; senão respondem 200 vazio (para o app não
+/// reenviar), sem aplicar. Isso dificulta forjar histórico sabendo só o código.
 async fn record(
     st: &AppState,
+    ip: Option<&str>,
     body: Result<Bytes, BytesRejection>,
     kind: Kind,
 ) -> Result<StatusCode, ApiError> {
@@ -98,14 +113,40 @@ async fn record(
         .map(|n| n.chars().take(MAX_NONCE_LEN).collect::<String>());
     let now = clock::now();
 
+    if matches!(kind, Kind::Conn)
+        && !devices::has_recent_heartbeat(&st.pool, &peer_id, ip.unwrap_or(""), now).await?
+    {
+        tracing::warn!(
+            peer_id = %peer_id,
+            ip = ip.unwrap_or("desconhecido"),
+            "audit/conn recusado: sem heartbeat recente do mesmo IP"
+        );
+        // Sem `nonce`: se o evento legítimo for reenviado depois do heartbeat,
+        // ele ainda precisa ser aplicado.
+        let mut tx = st.pool.begin().await?;
+        insert_raw(&mut tx, None, kind, &peer_id, REJECTED_BODY, now).await?;
+        tx.commit().await?;
+        return Ok(StatusCode::OK);
+    }
+
+    // Evento de conexão reconhecido: o corpo não é guardado (só o necessário
+    // para o dedup), pois já vira registro no histórico.
+    let conn_event = match kind {
+        Kind::Conn => parse_conn_event(obj, peer_id.clone()),
+        _ => None,
+    };
+    let stored_body = if conn_event.is_some() {
+        String::new()
+    } else {
+        String::from_utf8_lossy(&raw).into_owned()
+    };
+
     let mut tx = st.pool.begin().await?;
-    if !insert_raw(&mut tx, nonce.as_deref(), kind, &peer_id, &raw, now).await? {
+    if !insert_raw(&mut tx, nonce.as_deref(), kind, &peer_id, &stored_body, now).await? {
         // Reenvio de um evento já recebido: nada a reaplicar.
         return Ok(StatusCode::OK);
     }
-    if matches!(kind, Kind::Conn)
-        && let Some(ev) = parse_conn_event(obj, peer_id)
-    {
+    if let Some(ev) = conn_event {
         connections::apply_conn_event(&mut *tx, &ev, now).await?;
     }
     tx.commit().await?;
@@ -118,7 +159,7 @@ async fn insert_raw(
     nonce: Option<&str>,
     kind: Kind,
     peer_id: &str,
-    raw: &Bytes,
+    body: &str,
     now: i64,
 ) -> sqlx::Result<bool> {
     let inserted = sqlx::query(
@@ -129,7 +170,7 @@ async fn insert_raw(
     .bind(nonce)
     .bind(kind.as_str())
     .bind(peer_id)
-    .bind(String::from_utf8_lossy(raw).into_owned())
+    .bind(body)
     .bind(now)
     .execute(&mut **tx)
     .await?

@@ -63,8 +63,8 @@ async fn list_shows_computer_and_online_counts() {
     let id = client(&app, "Padaria X").await;
     clients::add_computer(&app.pool, id, "111222333", "Caixa", "").await.unwrap();
     clients::add_computer(&app.pool, id, "444555666", "Balcão", "").await.unwrap();
-    devices::touch(&app.pool, "111222333", "", "1", clock::now()).await.unwrap();
-    devices::touch(&app.pool, "444555666", "", "1", clock::now() - 3600).await.unwrap();
+    devices::touch(&app.pool, "111222333", "", "1", "", clock::now()).await.unwrap();
+    devices::touch(&app.pool, "444555666", "", "1", "", clock::now() - 3600).await.unwrap();
     let cookie = web_login(&app, "maria", "senha12345").await;
     let (_, _, body) = send(&app, get_req("/clientes/lista", Some(&cookie))).await;
     assert!(body.contains("<td class=\"num\">2</td>"), "{body}");
@@ -147,12 +147,12 @@ async fn online_status_shown() {
     let cookie = web_login(&app, "maria", "senha12345").await;
     let uri = format!("/clientes/{id}");
 
-    devices::touch(&app.pool, "111222333", "", "1", clock::now()).await.unwrap();
+    devices::touch(&app.pool, "111222333", "", "1", "", clock::now()).await.unwrap();
     let (_, _, body) = send(&app, get_req(&uri, Some(&cookie))).await;
     assert!(body.contains("Online"));
     assert!(!body.contains("Offline"));
 
-    devices::touch(&app.pool, "111222333", "", "1", clock::now() - 120).await.unwrap();
+    devices::touch(&app.pool, "111222333", "", "1", "", clock::now() - 120).await.unwrap();
     let (_, _, body) = send(&app, get_req(&uri, Some(&cookie))).await;
     assert!(body.contains("Offline"));
     assert!(!body.contains("Online"));

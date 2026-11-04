@@ -147,3 +147,37 @@ pub async fn web_login(app: &TestApp, username: &str, password: &str) -> String 
     assert_eq!(status, 303, "login web falhou: {body}");
     session_cookie_value(&headers).expect("cookie de sessão")
 }
+
+/// IP de origem padrão das requisições de teste (via `X-Forwarded-For`).
+pub const TEST_IP: &str = "203.0.113.7";
+
+/// Como `json_req`, mas declarando o IP de origem (o último de `X-Forwarded-For`, como o Caddy faz).
+pub fn json_req_from(method: &str, uri: &str, body: serde_json::Value, ip: &str) -> Request<Body> {
+    Request::builder()
+        .method(method)
+        .uri(uri)
+        .header(header::CONTENT_TYPE, "application/json")
+        .header("x-forwarded-for", ip)
+        .body(Body::from(body.to_string()))
+        .unwrap()
+}
+
+/// Heartbeat do computador `peer_id` vindo do IP `ip`.
+pub async fn heartbeat_from(app: &TestApp, peer_id: &str, ip: &str) {
+    let (status, _, body) = send(
+        app,
+        json_req_from(
+            "POST",
+            "/api/heartbeat",
+            serde_json::json!({"id": peer_id, "uuid": "dXU=", "ver": "1004005"}),
+            ip,
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "heartbeat falhou: {body}");
+}
+
+/// Heartbeat do computador `peer_id` vindo de `TEST_IP`.
+pub async fn heartbeat(app: &TestApp, peer_id: &str) {
+    heartbeat_from(app, peer_id, TEST_IP).await;
+}

@@ -4,15 +4,26 @@ use axum::{
     body::Body,
     http::{Request, StatusCode},
 };
-use common::{TestApp, json_req, send, test_app};
+use common::{TEST_IP, TestApp, heartbeat, heartbeat_from, json_req_from, send, test_app};
 use painel::connections::{self, ConnEvent, ConnEventKind, HistoryFilter, HistoryRow};
 use painel::users;
 use serde_json::{Value, json};
 use sqlx::Row;
 
 async fn post(app: &TestApp, uri: &str, body: Value) -> (StatusCode, String) {
-    let (status, _, text) = send(app, json_req("POST", uri, body, None)).await;
+    post_from(app, uri, body, TEST_IP).await
+}
+
+async fn post_from(app: &TestApp, uri: &str, body: Value, ip: &str) -> (StatusCode, String) {
+    let (status, _, text) = send(app, json_req_from("POST", uri, body, ip)).await;
     (status, text)
+}
+
+/// App de teste em que o computador do cliente (111222333) já mandou heartbeat do IP padrão.
+async fn audit_app() -> TestApp {
+    let app = test_app().await;
+    heartbeat(&app, "111222333").await;
+    app
 }
 
 /// Envia o evento e confirma 200 com corpo vazio (contrato do app).
@@ -61,7 +72,7 @@ async fn all_rows(app: &TestApp) -> Vec<HistoryRow> {
 
 #[tokio::test]
 async fn full_lifecycle() {
-    let app = test_app().await;
+    let app = audit_app().await;
     post_ok(&app, "/api/audit/conn", new_ev("111222333", 7)).await;
     post_ok(&app, "/api/audit/conn", authorized_ev("111222333", 7, "987654321")).await;
     post_ok(&app, "/api/audit/conn", close_ev("111222333", 7)).await;
@@ -81,7 +92,7 @@ async fn full_lifecycle() {
 
 #[tokio::test]
 async fn user_linked_by_operator_device() {
-    let app = test_app().await;
+    let app = audit_app().await;
     let maria = users::create(&app.pool, "maria", "Maria Silva", "senha-forte-123", false)
         .await
         .unwrap();
@@ -105,7 +116,7 @@ async fn user_linked_by_operator_device() {
 
 #[tokio::test]
 async fn duplicate_nonce_ignored() {
-    let app = test_app().await;
+    let app = audit_app().await;
     let mut ev = new_ev("111222333", 7);
     ev["nonce"] = json!("abc");
     post_ok(&app, "/api/audit/conn", ev.clone()).await;
@@ -116,7 +127,7 @@ async fn duplicate_nonce_ignored() {
 
 #[tokio::test]
 async fn failed_apply_does_not_burn_nonce() {
-    let app = test_app().await;
+    let app = audit_app().await;
     // Sem a tabela, aplicar o evento falha (500); o nonce não pode ficar marcado.
     sqlx::query("ALTER TABLE connections RENAME TO connections_off")
         .execute(&app.pool)
@@ -139,7 +150,7 @@ async fn failed_apply_does_not_burn_nonce() {
 
 #[tokio::test]
 async fn authorized_before_new_creates_single_record() {
-    let app = test_app().await;
+    let app = audit_app().await;
     post_ok(&app, "/api/audit/conn", authorized_ev("111222333", 7, "987654321")).await;
     assert_eq!(count(&app, "connections").await, 1);
     let rows = all_rows(&app).await;
@@ -154,7 +165,7 @@ async fn authorized_before_new_creates_single_record() {
 
 #[tokio::test]
 async fn close_without_open_is_ignored() {
-    let app = test_app().await;
+    let app = audit_app().await;
     post_ok(&app, "/api/audit/conn", close_ev("111222333", 7)).await;
     assert_eq!(count(&app, "connections").await, 0);
     assert_eq!(count(&app, "audit_raw").await, 1);
@@ -162,7 +173,7 @@ async fn close_without_open_is_ignored() {
 
 #[tokio::test]
 async fn refused_attempt_status() {
-    let app = test_app().await;
+    let app = audit_app().await;
     post_ok(&app, "/api/audit/conn", new_ev("111222333", 7)).await;
     let rows = all_rows(&app).await;
     assert_eq!(connections::status_label(&rows[0]), "Aguardando aceite");
@@ -183,13 +194,14 @@ async fn type_labels() {
 
 #[tokio::test]
 async fn session_id_large_number() {
-    let app = test_app().await;
+    let app = audit_app().await;
     let ev = new_ev("111222333", 7);
     // Escrito como texto bruto para garantir o valor exato no fio.
     let raw = ev.to_string().replace("\"session_id\":1", "\"session_id\":18446744073709551615");
     let req = Request::builder()
         .method("POST")
         .uri("/api/audit/conn")
+        .header("x-forwarded-for", TEST_IP)
         .body(Body::from(raw))
         .unwrap();
     let (status, _, text) = send(&app, req).await;
@@ -204,7 +216,7 @@ async fn session_id_large_number() {
 
 #[tokio::test]
 async fn audit_rejects_garbage() {
-    let app = test_app().await;
+    let app = audit_app().await;
     for uri in ["/api/audit/conn", "/api/audit/file", "/api/audit/alarm"] {
         let req = Request::builder()
             .method("POST")
@@ -220,7 +232,7 @@ async fn audit_rejects_garbage() {
 
 #[tokio::test]
 async fn audit_rejects_missing_or_long_id_and_non_object() {
-    let app = test_app().await;
+    let app = audit_app().await;
     for body in [
         json!({"conn_id": 1, "action": "close"}),
         json!({"id": "", "conn_id": 1, "action": "close"}),
@@ -237,7 +249,7 @@ async fn audit_rejects_missing_or_long_id_and_non_object() {
 
 #[tokio::test]
 async fn audit_rejects_oversize_body() {
-    let app = test_app().await;
+    let app = audit_app().await;
     let req = Request::builder()
         .method("POST")
         .uri("/api/audit/alarm")
@@ -250,7 +262,7 @@ async fn audit_rejects_oversize_body() {
 
 #[tokio::test]
 async fn file_and_alarm_stored_raw() {
-    let app = test_app().await;
+    let app = audit_app().await;
     post_ok(
         &app,
         "/api/audit/file",
@@ -286,7 +298,7 @@ async fn file_and_alarm_stored_raw() {
 
 #[tokio::test]
 async fn unknown_conn_format_stored_raw() {
-    let app = test_app().await;
+    let app = audit_app().await;
     post_ok(
         &app,
         "/api/audit/conn",
@@ -295,11 +307,16 @@ async fn unknown_conn_format_stored_raw() {
     .await;
     assert_eq!(count(&app, "connections").await, 0);
     assert_eq!(count(&app, "audit_raw").await, 1);
+    let body: String = sqlx::query_scalar("SELECT body FROM audit_raw")
+        .fetch_one(&app.pool)
+        .await
+        .unwrap();
+    assert!(body.contains("futuro"), "formato desconhecido guarda o corpo: {body}");
 }
 
 #[tokio::test]
 async fn operator_name_and_ip_truncated() {
-    let app = test_app().await;
+    let app = audit_app().await;
     let mut ev = new_ev("111222333", 7);
     ev["ip"] = json!("9".repeat(100));
     post_ok(&app, "/api/audit/conn", ev).await;
@@ -313,7 +330,7 @@ async fn operator_name_and_ip_truncated() {
 
 #[tokio::test]
 async fn query_filters() {
-    let app = test_app().await;
+    let app = audit_app().await;
     let ana = users::create(&app.pool, "ana", "Ana", "senha-forte-123", false)
         .await
         .unwrap();
@@ -336,6 +353,8 @@ async fn query_filters() {
         .execute(&app.pool)
         .await
         .unwrap();
+    heartbeat(&app, "555").await;
+    heartbeat(&app, "666").await;
     post_ok(&app, "/api/audit/conn", authorized_ev("555", 1, "1001")).await;
     post_ok(&app, "/api/audit/conn", authorized_ev("666", 2, "1002")).await;
 
@@ -377,7 +396,7 @@ async fn query_filters() {
 
 #[tokio::test]
 async fn authorized_then_new_then_close_single_record() {
-    let app = test_app().await;
+    let app = audit_app().await;
     post_ok(&app, "/api/audit/conn", authorized_ev("111222333", 7, "987654321")).await;
     post_ok(&app, "/api/audit/conn", new_ev("111222333", 7)).await;
     post_ok(&app, "/api/audit/conn", close_ev("111222333", 7)).await;
@@ -396,7 +415,7 @@ async fn authorized_then_new_then_close_single_record() {
 
 #[tokio::test]
 async fn authorized_repeated_keeps_first_time_and_user() {
-    let app = test_app().await;
+    let app = audit_app().await;
     let maria = users::create(&app.pool, "maria", "Maria Silva", "senha-forte-123", false)
         .await
         .unwrap();
@@ -427,4 +446,110 @@ async fn authorized_repeated_keeps_first_time_and_user() {
             .unwrap();
     assert_eq!(authorized_at, 100);
     assert_eq!(user_id, Some(maria));
+}
+
+const REJECTED_BODY: &str = r#"{"rejeitado":"sem heartbeat recente do mesmo IP"}"#;
+
+async fn raw_rows(app: &TestApp) -> Vec<(Option<String>, String, String, String)> {
+    sqlx::query_as("SELECT nonce, kind, peer_id, body FROM audit_raw ORDER BY id")
+        .fetch_all(&app.pool)
+        .await
+        .unwrap()
+}
+
+#[tokio::test]
+async fn audit_rejected_without_recent_heartbeat() {
+    // Sem nenhum heartbeat.
+    let app = test_app().await;
+    post_ok(&app, "/api/audit/conn", new_ev("111222333", 7)).await;
+    assert_eq!(count(&app, "connections").await, 0);
+    let rows = raw_rows(&app).await;
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].1, "conn");
+    assert_eq!(rows[0].2, "111222333");
+    assert_eq!(rows[0].3, REJECTED_BODY);
+
+    // Heartbeat antigo demais (mais de 120 s).
+    heartbeat(&app, "111222333").await;
+    sqlx::query("UPDATE devices SET last_seen_at = last_seen_at - 200")
+        .execute(&app.pool)
+        .await
+        .unwrap();
+    post_ok(&app, "/api/audit/conn", new_ev("111222333", 8)).await;
+    assert_eq!(count(&app, "connections").await, 0);
+    assert_eq!(count(&app, "audit_raw").await, 2);
+}
+
+#[tokio::test]
+async fn audit_rejected_does_not_burn_nonce() {
+    let app = test_app().await;
+    let mut ev = new_ev("111222333", 7);
+    ev["nonce"] = json!("n-1");
+    post_ok(&app, "/api/audit/conn", ev.clone()).await;
+    assert_eq!(count(&app, "connections").await, 0);
+
+    // O app reenvia o mesmo evento depois que o heartbeat chegou: agora vale.
+    heartbeat(&app, "111222333").await;
+    post_ok(&app, "/api/audit/conn", ev).await;
+    assert_eq!(count(&app, "connections").await, 1);
+}
+
+#[tokio::test]
+async fn audit_rejected_from_other_ip() {
+    let app = audit_app().await;
+    let (status, text) = post_from(&app, "/api/audit/conn", new_ev("111222333", 7), "198.51.100.9").await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(text, "");
+    assert_eq!(count(&app, "connections").await, 0);
+    let rows = raw_rows(&app).await;
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].3, REJECTED_BODY);
+
+    // Do IP do heartbeat, vale.
+    post_ok(&app, "/api/audit/conn", new_ev("111222333", 7)).await;
+    assert_eq!(count(&app, "connections").await, 1);
+}
+
+#[tokio::test]
+async fn audit_accepted_after_heartbeat_same_ip() {
+    let app = audit_app().await;
+    let mut ev = new_ev("111222333", 7);
+    ev["nonce"] = json!("n-ok");
+    post_ok(&app, "/api/audit/conn", ev).await;
+    assert_eq!(count(&app, "connections").await, 1);
+    // Evento reconhecido: só os metadados do dedup, sem o corpo.
+    let rows = raw_rows(&app).await;
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].0.as_deref(), Some("n-ok"));
+    assert_eq!(rows[0].1, "conn");
+    assert_eq!(rows[0].2, "111222333");
+    assert_eq!(rows[0].3, "");
+}
+
+#[tokio::test]
+async fn audit_uses_last_forwarded_address() {
+    let app = test_app().await;
+    // O primeiro endereço pode ser forjado pelo cliente; vale o último (o do Caddy).
+    heartbeat_from(&app, "111222333", "1.1.1.1, 203.0.113.7").await;
+    post_from(&app, "/api/audit/conn", new_ev("111222333", 7), "9.9.9.9, 203.0.113.7").await;
+    assert_eq!(count(&app, "connections").await, 1);
+    let ip: String = sqlx::query_scalar("SELECT last_ip FROM devices WHERE peer_id = '111222333'")
+        .fetch_one(&app.pool)
+        .await
+        .unwrap();
+    assert_eq!(ip, "203.0.113.7");
+}
+
+#[tokio::test]
+async fn audit_without_known_ip_is_rejected() {
+    // Sem X-Forwarded-For nem ConnectInfo (só ocorre em teste): nunca aceita.
+    let app = audit_app().await;
+    let (status, _, text) = send(
+        &app,
+        common::json_req("POST", "/api/audit/conn", new_ev("111222333", 7), None),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(text, "");
+    assert_eq!(count(&app, "connections").await, 0);
 }
