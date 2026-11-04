@@ -1,0 +1,5 @@
+.superpowers/
+painel/target/
+painel/dados/
+servidor/.env
+servidor/dados/
