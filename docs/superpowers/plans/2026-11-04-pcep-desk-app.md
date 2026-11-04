@@ -145,7 +145,7 @@ Modificados (ganchos): Cargo.toml (dependência pcep), src/common.rs, src/lang.r
 - Entregáveis (nomes fixos, sem versão, para links estáveis do painel):
   - Windows: `PcepDesk-Windows-x64.exe` (cliente) e `PcepDeskEquipe-Windows-x64.exe` (colaborador) — o executável portátil único que o upstream gera com `libs/portable`.
   - Linux: `PcepDesk-Linux-x86_64.AppImage` (cliente) e `PcepDeskEquipe-Linux-x86_64.AppImage` (colaborador); o `.deb` fica como pendência.
-  - macOS: `PcepDesk-macOS-<arch>.dmg`, `PcepDeskEquipe-macOS-<arch>.dmg` (`arch` = `x64` ou `arm64`), sem assinatura.
+  - macOS: `PcepDesk-macOS-arm64.dmg`, `PcepDeskEquipe-macOS-arm64.dmg`, sem assinatura (macOS Intel removido em 2026-11-04: runners escassos).
 - Em tag `pcep-v*`: criar release com todos os entregáveis (`softprops/action-gh-release`, como o upstream) e texto "Código-fonte: https://github.com/DevPCEP/pcep-desk-app".
 
 - [ ] **Step 1:** Escrever o workflow; validar sintaxe com `python3 -c "import yaml,sys; yaml.safe_load(open(sys.argv[1]))" .github/workflows/pcep-build.yml` e, se disponível, `actionlint`.
