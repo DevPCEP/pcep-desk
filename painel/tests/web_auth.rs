@@ -267,3 +267,30 @@ async fn static_assets_are_served() {
     assert_eq!(status, 200);
     assert!(body.contains("htmx"));
 }
+
+#[tokio::test]
+async fn web_pages_have_security_headers_but_api_does_not() {
+    let app = setup().await;
+    let expected = [
+        ("cache-control", "no-store"),
+        ("x-frame-options", "DENY"),
+        ("x-content-type-options", "nosniff"),
+        ("referrer-policy", "same-origin"),
+    ];
+    // Página pública, redirecionamento e página autenticada.
+    let cookie = common::web_login(&app, "maria", "senha12345").await;
+    for (uri, cookie) in [("/entrar", None), ("/clientes", None), ("/clientes", Some(cookie.as_str()))] {
+        let (_, headers, _) = send(&app, get_req(uri, cookie)).await;
+        for (name, value) in expected {
+            assert_eq!(
+                headers.get(name).and_then(|v| v.to_str().ok()),
+                Some(value),
+                "{name} em {uri}"
+            );
+        }
+    }
+    // A API não recebe esses cabeçalhos.
+    let (_, headers, _) = send(&app, get_req("/api/login-options", None)).await;
+    assert!(headers.get("x-frame-options").is_none());
+    assert!(headers.get("cache-control").is_none());
+}
