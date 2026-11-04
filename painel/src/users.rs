@@ -1,6 +1,9 @@
 use sqlx::SqlitePool;
 
-use crate::{auth::password::hash_password, clock};
+use crate::{
+    auth::password::{hash_password, run_limited},
+    clock,
+};
 
 #[derive(Clone, Debug, sqlx::FromRow)]
 pub struct User {
@@ -51,10 +54,10 @@ fn valid_username(u: &str) -> bool {
             .all(|c| matches!(c, 'a'..='z' | '0'..='9' | '.' | '_' | '-'))
 }
 
-/// Hash de Argon2 é pesado: roda fora do executor assíncrono.
+/// Hash de Argon2 é pesado: roda fora do executor assíncrono, com concorrência limitada.
 async fn hash_blocking(password: &str) -> Result<String, UserError> {
     let password = password.to_string();
-    tokio::task::spawn_blocking(move || hash_password(&password))
+    run_limited(move || hash_password(&password))
         .await
         .map_err(|e| UserError::Invalid(format!("falha ao processar a senha: {e}")))
 }

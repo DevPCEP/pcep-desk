@@ -4,7 +4,7 @@
 use std::sync::OnceLock;
 
 use crate::{
-    auth::password::{hash_password, verify_password},
+    auth::password::{hash_password, run_limited, verify_password},
     clock,
     state::AppState,
     users::{self, User},
@@ -46,7 +46,7 @@ fn dummy_hash() -> &'static str {
 }
 
 async fn verify_blocking(password: String, hash: Option<String>) -> Result<bool, LoginFailure> {
-    tokio::task::spawn_blocking(move || match hash {
+    run_limited(move || match hash {
         Some(h) => verify_password(&password, &h),
         None => {
             // Resultado descartado: só iguala o tempo de resposta.
