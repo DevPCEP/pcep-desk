@@ -15,18 +15,23 @@ FALHAS=0
 #    A pasta é criada dentro do contêiner para ficar com o dono certo (PAINEL_UID).
 if docker compose exec -T painel mkdir -p /dados/backups \
   && docker compose exec -T painel painel backup "/dados/backups/painel-${CARIMBO}.db"; then
-  chmod 600 "$PASTA/painel-${CARIMBO}.db"
+  chmod 600 "$PASTA/painel-${CARIMBO}.db" || FALHAS=1
 else
   echo "ERRO: não consegui gravar o backup do banco." >&2
   FALHAS=1
 fi
 
 # 2) Chaves do servidor RustDesk. Sem a chave, todos os clientes teriam de ser reconfigurados.
+#    A chave privada só pode ser lida pelo dono: reforça a permissão a cada execução.
+chmod 600 dados/rustdesk/id_ed25519 || {
+  echo "ERRO: não consegui aplicar chmod 600 em dados/rustdesk/id_ed25519 (rode como root)." >&2
+  FALHAS=1
+}
 for f in id_ed25519 id_ed25519.pub; do
   origem="dados/rustdesk/$f"
   destino="$PASTA/${f/id_ed25519/id_ed25519-${CARIMBO}}"
   if cp "$origem" "$destino"; then
-    chmod 600 "$destino"
+    chmod 600 "$destino" || FALHAS=1
   else
     echo "ERRO: não consegui copiar $origem (rode como root)." >&2
     FALHAS=1

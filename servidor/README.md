@@ -88,7 +88,13 @@ Na primeira execução o `hbbs` cria o par de chaves do servidor. A **chave púb
 servidor/dados/rustdesk/id_ed25519.pub
 ```
 
-Veja o conteúdo com `cat dados/rustdesk/id_ed25519.pub`. Esse texto é o que os aplicativos precisam no campo **Chave**. A chave **privada** (`id_ed25519`) nunca deve ser compartilhada.
+Veja o conteúdo com `cat dados/rustdesk/id_ed25519.pub`. Esse texto é o que os aplicativos precisam no campo **Chave**. A chave **privada** (`id_ed25519`) nunca deve ser compartilhada e só pode ser legível pelo dono. Depois da primeira execução, restrinja a permissão (como root, pois o arquivo pertence ao root):
+
+```bash
+sudo chmod 600 dados/rustdesk/id_ed25519
+```
+
+O `backup.sh` reaplica essa permissão a cada execução.
 
 ## 8. Testando com o RustDesk original
 
@@ -132,7 +138,16 @@ docker compose start painel
 
 (Troque o nome do arquivo pelo backup que quer restaurar.) Para restaurar as chaves, pare o `hbbs` e o `hbbr`, copie `id_ed25519-...` para `dados/rustdesk/id_ed25519` e `id_ed25519-....pub` para `dados/rustdesk/id_ed25519.pub`, e suba de novo.
 
-## 10. Atualização
+## 10. Limite de taxa por IP (recomendado)
+
+As rotas que o aplicativo usa sem login (`/api/heartbeat`, `/api/sysinfo` e `/api/audit/*`) ficam abertas à internet. O painel já limita o tamanho dos pedidos (4 KiB), mas **não limita quantos pedidos por segundo** cada IP pode mandar, e o **Caddy padrão também não tem limite de taxa**. Para reduzir o risco de abuso, limite a taxa por IP em uma destas camadas:
+
+- **Firewall do servidor (nftables ou ufw):** limite novas conexões por IP nas portas 80 e 443. Exemplo com nftables: `tcp dport { 80, 443 } ct state new meter limite-web { ip saddr limit rate over 30/second } drop`.
+- **Caddy com o plugin `rate_limit`** (por exemplo `github.com/mholt/caddy-ratelimit`): exige gerar uma imagem do Caddy com o plugin (`xcaddy build --with github.com/mholt/caddy-ratelimit`) e configurar o limite no `Caddyfile`.
+
+**Histórico indicativo:** os eventos de histórico (`audit/conn`) só são aceitos de um computador que acabou de mandar heartbeat do mesmo IP, o que dificulta forjar registros, mas o **nome do colaborador é informado pelo próprio aplicativo** (decisão do desenho). Trate o histórico como indicativo, não como prova. O IP de origem vem do cabeçalho `X-Forwarded-For` acrescentado pelo Caddy; por isso o painel **nunca deve ser publicado diretamente** (o `docker-compose.yml` já não abre a porta dele).
+
+## 11. Atualização
 
 ```bash
 cd pcep-desk
