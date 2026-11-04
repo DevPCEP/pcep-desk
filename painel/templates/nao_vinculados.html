@@ -5,6 +5,9 @@
   <h1>Não vinculados</h1>
 </div>
 <p class="ajuda">Computadores que já falaram com o servidor, mas ainda não foram cadastrados em nenhum cliente.</p>
+{% if truncated %}
+<p class="aviso">Mostrando os 200 mais recentes. Vincule estes para ver os demais.</p>
+{% endif %}
 {% if devices.is_empty() %}
 <p class="aviso">Nenhum dispositivo aguardando vínculo.</p>
 {% else %}

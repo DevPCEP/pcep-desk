@@ -141,8 +141,11 @@ pub async fn get(pool: &SqlitePool, peer_id: &str) -> sqlx::Result<Option<Device
     .await
 }
 
+/// Máximo de dispositivos devolvidos por `list_unlinked`.
+pub const UNLINKED_LIMIT: i64 = 200;
+
 /// Dispositivos ainda não vinculados a um computador de cliente nem a um
-/// colaborador, do mais recente para o mais antigo.
+/// colaborador, do mais recente para o mais antigo (no máximo `UNLINKED_LIMIT`).
 pub async fn list_unlinked(pool: &SqlitePool) -> sqlx::Result<Vec<Device>> {
     sqlx::query_as::<_, Device>(
         "SELECT peer_id, uuid, version, hostname, os, username, cpu, memory,
@@ -150,7 +153,8 @@ pub async fn list_unlinked(pool: &SqlitePool) -> sqlx::Result<Vec<Device>> {
          FROM devices
          WHERE peer_id NOT IN (SELECT peer_id FROM computers)
            AND peer_id NOT IN (SELECT peer_id FROM user_devices)
-         ORDER BY last_seen_at DESC, peer_id",
+         ORDER BY last_seen_at DESC, peer_id
+         LIMIT 200",
     )
     .fetch_all(pool)
     .await

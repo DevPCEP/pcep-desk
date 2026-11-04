@@ -458,3 +458,38 @@ async fn htmx_request_without_session_gets_hx_redirect() {
     assert_eq!(headers.get("hx-redirect").unwrap(), "/entrar");
     assert!(!body.contains("Entrar"));
 }
+
+#[tokio::test]
+async fn unlinked_limited_to_200_most_recent_with_notice() {
+    let app = setup().await;
+    // 201 dispositivos: o mais antigo (peer "300000") fica de fora.
+    for i in 0..201_i64 {
+        sqlx::query(
+            "INSERT INTO devices (peer_id, first_seen_at, last_seen_at) VALUES (?, ?, ?)",
+        )
+        .bind(format!("{}", 300_000 + i))
+        .bind(1000 + i)
+        .bind(1000 + i)
+        .execute(&app.pool)
+        .await
+        .unwrap();
+    }
+    assert_eq!(devices::list_unlinked(&app.pool).await.unwrap().len(), 200);
+    let cookie = web_login(&app, "maria", "senha12345").await;
+    let (status, _, body) = send(&app, get_req("/nao-vinculados", Some(&cookie))).await;
+    assert_eq!(status, 200);
+    assert!(body.contains("Mostrando os 200 mais recentes"));
+    assert_eq!(body.matches("/vincular\">Vincular").count(), 200);
+    assert!(!body.contains("/nao-vinculados/300000/vincular"));
+    assert!(body.contains("/nao-vinculados/300200/vincular"));
+}
+
+#[tokio::test]
+async fn unlinked_without_limit_has_no_notice() {
+    let app = setup().await;
+    devices::touch(&app.pool, "111222333", "", "1", "", clock::now()).await.unwrap();
+    let cookie = web_login(&app, "maria", "senha12345").await;
+    let (_, _, body) = send(&app, get_req("/nao-vinculados", Some(&cookie))).await;
+    assert!(body.contains("111222333") || body.contains("111 222 333"));
+    assert!(!body.contains("Mostrando os 200 mais recentes"));
+}

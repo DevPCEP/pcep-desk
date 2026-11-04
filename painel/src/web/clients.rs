@@ -591,13 +591,15 @@ struct UnlinkedPage {
     user: User,
     active: &'static str,
     devices: Vec<UnlinkedView>,
+    /// A lista foi cortada em `UNLINKED_LIMIT`.
+    truncated: bool,
 }
 
 async fn unlinked_page(State(st): State<AppState>, WebUser(user): WebUser) -> PageResult {
     let now = clock::now();
-    let devices = devices::list_unlinked(&st.pool)
-        .await
-        .map_err(internal)?
+    let found = devices::list_unlinked(&st.pool).await.map_err(internal)?;
+    let truncated = found.len() as i64 >= devices::UNLINKED_LIMIT;
+    let devices = found
         .into_iter()
         .map(|d| UnlinkedView {
             code_display: group_code(&d.peer_id),
@@ -612,6 +614,7 @@ async fn unlinked_page(State(st): State<AppState>, WebUser(user): WebUser) -> Pa
         user,
         active: ACTIVE_UNLINKED,
         devices,
+        truncated,
     }
     .into_response())
 }
