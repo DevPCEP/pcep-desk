@@ -175,3 +175,47 @@ Este é o ponto em aberto do projeto: o painel só descobre computadores que env
 
 **Conclusão do teste manual:** ( ) tudo conforme ( ) com divergências (listadas acima)
 **Data e quem testou:** ____
+
+## Parte C: apps próprios Pc&P Desk (Plano 2)
+
+Mesmo ambiente da Parte B (servidor `hbbs`/`hbbr` + painel na máquina Linux; VM Windows em modo bridge). Os apps já vêm com servidor, chave e API gravados — **não configure nada na tela de rede**.
+
+**Onde baixar (antes da primeira release):** página da execução do workflow `pcep-build.yml` no GitHub → seção *Artifacts* → `entregavel-PcepDesk-Windows-x64.exe` (cliente, para a VM) e `entregavel-PcepDeskEquipe-Linux-x86_64.AppImage` (equipe, para a máquina Linux). Os artifacts vêm em `.zip`; descompacte.
+**Depois da release:** `http://<IP>:8080/baixar`.
+
+Versões: commit do app `__________`, execução do workflow `__________`.
+
+- [ ] **C.1 Cliente abre sem instalar e sem configurar**
+  - Fazer: na VM, rodar `PcepDesk-Windows-x64.exe` (se o Windows avisar "protegeu o computador": Mais informações → Executar assim mesmo).
+  - Deve acontecer: janela "Pc&P Desk" com ícone do escritório, código de conexão visível, sem tela para trocar servidor; botão "Instalar" visível.
+  - Anote se diferente: ________
+- [ ] **C.2 Cliente aparece no painel**
+  - Fazer: no painel, abrir "Não vinculados".
+  - Deve acontecer: o computador da VM aparece em até ~30 s. Vincular a um cliente.
+- [ ] **C.3 Configurações bloqueadas no cliente**
+  - Fazer: procurar Configurações/servidor/senha permanente no app do cliente.
+  - Deve acontecer: não há como mudar servidor, senha permanente ou modo de aceite.
+- [ ] **C.4 App da equipe exige login**
+  - Fazer: na máquina Linux, dar permissão de execução e abrir `PcepDeskEquipe-Linux-x86_64.AppImage`; SEM login, tentar conectar ao código da VM.
+  - Deve acontecer: aviso "Faça login no Pc&P Desk Equipe para conectar." e nenhuma conexão.
+- [ ] **C.5 Link sem login também bloqueado**
+  - Fazer: sem login, rodar `./PcepDeskEquipe-Linux-x86_64.AppImage --connect <código da VM>`.
+  - Deve acontecer: janela com mensagem de erro, sem conexão.
+- [ ] **C.6 Com login: catálogo e aceite**
+  - Fazer: entrar com a colaboradora do painel; abrir o catálogo "Clientes PCEP"; conectar ao computador do cliente.
+  - Deve acontecer: na VM aparece a janela de aceite com o nome da colaboradora (ex.: "Maria – PCEP"); só conecta depois do clique em Aceitar. Não há opção de entrar com senha.
+- [ ] **C.7 Histórico**
+  - Fazer: aceitar, usar, encerrar; depois recusar uma tentativa.
+  - Deve acontecer: no painel, "Conectado" com duração e a colaboradora; a recusa como "Não concluída".
+- [ ] **C.8 Cliente com a janela fechada**
+  - Fazer: na VM, instalar o Pc&P Desk (botão Instalar), fechar a janela principal (deixando o serviço) e tentar conectar.
+  - Deve acontecer: conexão recusada.
+- [ ] **C.9 RustDesk original não interfere**
+  - Fazer: na mesma VM, se houver RustDesk original com senha permanente, tentar entrar no Pc&P Desk com essa senha.
+  - Deve acontecer: não entra; o Pc&P Desk só aceita por clique.
+- [ ] **C.10 Sair do login derruba a reconexão**
+  - Fazer: conectado, sair do login no app da equipe e tentar reconectar.
+  - Deve acontecer: reconexão bloqueada com mensagem.
+- [ ] **C.11 Sobre e nomes**
+  - Fazer: abrir Configurações → Sobre no app da equipe.
+  - Deve acontecer: "Pc&P Desk — baseado no RustDesk (AGPL-3.0)" e link do código-fonte; sem links para rustdesk.com (exceto o crédito "powered by").
