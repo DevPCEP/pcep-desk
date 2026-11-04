@@ -78,7 +78,7 @@ fn parse_body<T: serde::de::DeserializeOwned>(
     serde_json::from_slice(&bytes).map_err(|_| invalid_request())
 }
 
-fn invalid_request() -> ApiError {
+pub(super) fn invalid_request() -> ApiError {
     ApiError::bad_request("Requisição inválida")
 }
 
@@ -88,7 +88,7 @@ fn clean(s: &str) -> String {
 }
 
 /// Id normalizado, ou `None` se vazio ou longo demais.
-fn clean_peer_id(id: &str) -> Option<&str> {
+pub(super) fn clean_peer_id(id: &str) -> Option<&str> {
     let id = id.trim();
     (!id.is_empty() && id.chars().count() <= MAX_PEER_ID_LEN).then_some(id)
 }

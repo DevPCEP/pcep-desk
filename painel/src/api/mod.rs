@@ -1,6 +1,7 @@
 //! Rotas `/api/*` consumidas pelo app RustDesk.
 
 pub mod account;
+pub mod audit;
 pub mod devices;
 pub mod extract;
 pub mod groups;
@@ -15,4 +16,5 @@ pub fn router() -> Router<AppState> {
         .merge(account::router())
         .merge(groups::router())
         .merge(devices::router())
+        .merge(audit::router())
 }

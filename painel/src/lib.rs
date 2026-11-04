@@ -4,6 +4,7 @@ pub mod api;
 pub mod auth;
 pub mod clock;
 pub mod config;
+pub mod connections;
 pub mod devices;
 pub mod db;
 pub mod error;
