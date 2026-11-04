@@ -217,3 +217,19 @@ async fn delete_client_cascades_computers() {
         .await
         .unwrap();
 }
+
+#[tokio::test]
+async fn search_finds_code_typed_with_spaces() {
+    let app = test_app().await;
+    let a = clients::create(&app.pool, "Padaria X", "", "").await.unwrap();
+    clients::create(&app.pool, "Mercado Y", "", "").await.unwrap();
+    clients::add_computer(&app.pool, a, "123456789", "Caixa", "")
+        .await
+        .unwrap();
+    for q in ["123 456 789", " 123-456-789 ", "123.456.789", "123456789"] {
+        let found = clients::search(&app.pool, q, 50).await.unwrap();
+        assert_eq!(found.len(), 1, "busca {q:?}");
+        assert_eq!(found[0].name, "Padaria X");
+    }
+    assert!(clients::search(&app.pool, "123 456 780", 50).await.unwrap().is_empty());
+}

@@ -188,10 +188,12 @@ fn escape_like(q: &str) -> String {
 }
 
 /// Busca clientes por nome, documento e rótulo/código dos computadores.
-/// Busca vazia lista todos. Resultado ordenado por nome, sem repetições.
+/// Se a busca for um código de conexão digitado com espaços, pontos ou hífens
+/// (`123 456 789`), também procura o código normalizado. Busca vazia lista todos. Resultado ordenado por nome, sem repetições.
 /// (O `LIKE` do SQLite ignora maiúsculas só para letras ASCII.)
 pub async fn search(pool: &SqlitePool, q: &str, limit: i64) -> sqlx::Result<Vec<Client>> {
     let pattern = format!("%{}%", escape_like(q.trim()));
+    let normalized_id = normalize_peer_id(q);
     sqlx::query_as(
         r"SELECT DISTINCT c.id, c.name, c.document, c.note
           FROM clients c
@@ -200,11 +202,13 @@ pub async fn search(pool: &SqlitePool, q: &str, limit: i64) -> sqlx::Result<Vec<
              OR c.document LIKE ?1 ESCAPE '\'
              OR p.label LIKE ?1 ESCAPE '\'
              OR p.peer_id LIKE ?1 ESCAPE '\'
+             OR p.peer_id = ?3
           ORDER BY c.name
           LIMIT ?2",
     )
     .bind(pattern)
     .bind(limit)
+    .bind(normalized_id)
     .fetch_all(pool)
     .await
 }
