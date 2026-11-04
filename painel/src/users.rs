@@ -1,9 +1,6 @@
 use sqlx::SqlitePool;
 
-use crate::{
-    auth::{password::hash_password, tokens::revoke_user_tokens},
-    clock,
-};
+use crate::{auth::password::hash_password, clock};
 
 #[derive(Clone, Debug, sqlx::FromRow)]
 pub struct User {
@@ -171,15 +168,20 @@ pub async fn set_password(pool: &SqlitePool, id: i64, password: &str) -> Result<
     Ok(())
 }
 
-/// Ativa/desativa o usuário. Desativar também revoga todos os tokens dele.
+/// Ativa/desativa o usuário. Desativar também revoga todos os tokens dele,
+/// na mesma transação (nunca fica desativado com token válido).
 pub async fn set_active(pool: &SqlitePool, id: i64, active: bool) -> sqlx::Result<()> {
+    let mut tx = pool.begin().await?;
     sqlx::query("UPDATE users SET active = ? WHERE id = ?")
         .bind(active)
         .bind(id)
-        .execute(pool)
+        .execute(&mut *tx)
         .await?;
     if !active {
-        revoke_user_tokens(pool, id).await?;
+        sqlx::query("DELETE FROM tokens WHERE user_id = ?")
+            .bind(id)
+            .execute(&mut *tx)
+            .await?;
     }
-    Ok(())
+    tx.commit().await
 }

@@ -74,3 +74,76 @@ pub fn json_req(
     }
     b.body(Body::from(body.to_string())).unwrap()
 }
+
+/// Codifica pares chave/valor como `application/x-www-form-urlencoded`.
+pub fn form_encode(pairs: &[(&str, &str)]) -> String {
+    fn enc(s: &str) -> String {
+        let mut out = String::new();
+        for b in s.bytes() {
+            match b {
+                b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                    out.push(b as char)
+                }
+                _ => out.push_str(&format!("%{b:02X}")),
+            }
+        }
+        out
+    }
+    pairs
+        .iter()
+        .map(|(k, v)| format!("{}={}", enc(k), enc(v)))
+        .collect::<Vec<_>>()
+        .join("&")
+}
+
+/// Requisição de formulário web; `cookie` é o valor do cookie `pcep_sessao`.
+pub fn form_req(
+    method: &str,
+    uri: &str,
+    pairs: &[(&str, &str)],
+    cookie: Option<&str>,
+) -> Request<Body> {
+    let mut b = Request::builder()
+        .method(method)
+        .uri(uri)
+        .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded");
+    if let Some(c) = cookie {
+        b = b.header(header::COOKIE, format!("pcep_sessao={c}"));
+    }
+    b.body(Body::from(form_encode(pairs))).unwrap()
+}
+
+/// GET de página web, opcionalmente com o cookie de sessão.
+pub fn get_req(uri: &str, cookie: Option<&str>) -> Request<Body> {
+    let mut b = Request::builder().method("GET").uri(uri);
+    if let Some(c) = cookie {
+        b = b.header(header::COOKIE, format!("pcep_sessao={c}"));
+    }
+    b.body(Body::empty()).unwrap()
+}
+
+/// Valor do cookie `pcep_sessao` num `Set-Cookie`, se houver.
+pub fn session_cookie_value(headers: &HeaderMap) -> Option<String> {
+    headers
+        .get_all(header::SET_COOKIE)
+        .iter()
+        .filter_map(|v| v.to_str().ok())
+        .find_map(|v| v.strip_prefix("pcep_sessao="))
+        .map(|rest| rest.split(';').next().unwrap_or("").to_string())
+}
+
+/// Faz login web e devolve o valor do cookie de sessão.
+pub async fn web_login(app: &TestApp, username: &str, password: &str) -> String {
+    let (status, headers, body) = send(
+        app,
+        form_req(
+            "POST",
+            "/entrar",
+            &[("usuario", username), ("senha", password)],
+            None,
+        ),
+    )
+    .await;
+    assert_eq!(status, 303, "login web falhou: {body}");
+    session_cookie_value(&headers).expect("cookie de sessão")
+}

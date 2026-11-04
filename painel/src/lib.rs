@@ -12,8 +12,10 @@ pub mod db;
 pub mod error;
 pub mod state;
 pub mod users;
+pub mod web;
 
 use axum::{Router, extract::DefaultBodyLimit, routing::get};
+use tower_http::services::ServeDir;
 
 use crate::state::AppState;
 
@@ -23,6 +25,9 @@ pub fn build_router(state: AppState) -> Router {
         .route("/saude", get(saude))
         // Limite de corpo de 64 KiB em todas as rotas `/api/*`.
         .nest("/api", api::router().layer(DefaultBodyLimit::max(65536)))
+        .merge(web::router(state.clone()))
+        // Arquivos estáticos (htmx, CSS), relativos ao diretório de trabalho.
+        .nest_service("/static", ServeDir::new("static"))
         .with_state(state)
 }
 

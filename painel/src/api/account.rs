@@ -1,5 +1,3 @@
-use std::sync::OnceLock;
-
 use axum::{
     Json, Router,
     body::Bytes,
@@ -14,17 +12,14 @@ use sqlx::SqlitePool;
 use crate::{
     api::extract::{ApiJson, ApiUser, bearer_token},
     auth::{
-        password::{hash_password, verify_password},
+        login::{LoginFailure, authenticate},
         tokens::{TokenKind, issue_token, revoke_token},
     },
     clock,
     error::ApiError,
     state::AppState,
-    users::{self, User},
+    users::User,
 };
-
-/// Tamanho máximo do nome de usuário aceito no login.
-const MAX_USERNAME_LEN: usize = 128;
 
 pub fn router() -> Router<AppState> {
     Router::new()
@@ -67,26 +62,6 @@ struct LoginReq {
     login_type: Option<String>,
 }
 
-/// Hash fictício (calculado uma vez) para gastar o mesmo tempo de CPU
-/// quando o usuário não existe.
-fn dummy_hash() -> &'static str {
-    static HASH: OnceLock<String> = OnceLock::new();
-    HASH.get_or_init(|| hash_password("senha-fictícia-para-igualar-o-tempo"))
-}
-
-async fn verify_blocking(password: String, hash: Option<String>) -> Result<bool, ApiError> {
-    tokio::task::spawn_blocking(move || match hash {
-        Some(h) => verify_password(&password, &h),
-        None => {
-            // Resultado descartado: só iguala o tempo de resposta.
-            verify_password(&password, dummy_hash());
-            false
-        }
-    })
-    .await
-    .map_err(ApiError::internal)
-}
-
 async fn login(
     State(st): State<AppState>,
     ApiJson(req): ApiJson<LoginReq>,
@@ -94,31 +69,11 @@ async fn login(
     if !matches!(req.login_type.as_deref(), None | Some("account")) {
         return Ok(login_error("Método de login não suportado"));
     }
-    let key = req.username.trim().to_lowercase();
-    // Nomes enormes nem chegam ao limiter nem ao banco (evita chaves gigantes na memória).
-    if key.chars().count() > MAX_USERNAME_LEN {
-        return Ok(login_error("Usuário ou senha incorretos"));
-    }
-    // Atômico: já conta a tentativa, então requisições paralelas não furam o bloqueio.
-    if !st.limiter.try_acquire(&key, clock::now()) {
-        return Ok(login_error("Muitas tentativas. Aguarde 15 minutos."));
-    }
-
-    let found = users::find_by_username(&st.pool, &req.username).await?;
-    let (user, hash) = match found {
-        Some((u, h)) => (Some(u), Some(h)),
-        None => (None, None),
+    let user = match authenticate(&st, &req.username, req.password).await {
+        Ok(u) => u,
+        Err(LoginFailure::Internal(msg)) => return Err(ApiError::internal(msg)),
+        Err(f) => return Ok(login_error(f.message())),
     };
-    let password_ok = verify_blocking(req.password, hash).await?;
-    let user = match user {
-        Some(u) if password_ok => u,
-        _ => return Ok(login_error("Usuário ou senha incorretos")),
-    };
-    if !user.active {
-        return Ok(login_error("Usuário desativado"));
-    }
-
-    st.limiter.reset(&key);
     let token = issue_token(&st.pool, user.id, TokenKind::App).await?;
     record_device(&st.pool, user.id, &req.id, &req.uuid).await?;
     Ok(Json(json!({

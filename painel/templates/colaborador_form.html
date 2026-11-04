@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}{% if editing.is_some() %}Editar colaborador{% else %}Novo colaborador{% endif %}{% endblock %}
+{% block content %}
+<h1>{% if editing.is_some() %}Editar colaborador{% else %}Novo colaborador{% endif %}</h1>
+{% if let Some(msg) = error %}
+<p class="erro" role="alert">{{ msg }}</p>
+{% endif %}
+<form class="cartao formulario" method="post" action="{% if let Some(id) = editing %}/colaboradores/{{ id }}{% else %}/colaboradores{% endif %}">
+  <label for="usuario">Usuário</label>
+  {% if editing.is_some() %}
+  <input id="usuario" type="text" value="{{ usuario }}" disabled>
+  <p class="ajuda">O usuário não pode ser alterado.</p>
+  {% else %}
+  <input id="usuario" name="usuario" type="text" value="{{ usuario }}" autocomplete="off" autocapitalize="none" required>
+  <p class="ajuda">De 3 a 32 caracteres: letras minúsculas, números, ponto, hífen ou sublinhado. Ex.: maria.silva</p>
+  {% endif %}
+
+  <label for="nome">Nome de exibição</label>
+  <input id="nome" name="nome" type="text" value="{{ nome }}" autocomplete="off" required>
+  <p class="ajuda">É o nome que o cliente vê ao aceitar a conexão, ex.: Maria – PCEP</p>
+
+  <label for="email">E-mail (opcional)</label>
+  <input id="email" name="email" type="email" value="{{ email }}" autocomplete="off">
+
+  {% if editing.is_none() %}
+  <label for="senha">Senha</label>
+  <input id="senha" name="senha" type="password" autocomplete="new-password" minlength="8" required>
+  <p class="ajuda">Mínimo de 8 caracteres.</p>
+  {% endif %}
+
+  {% if is_self %}
+  <input type="hidden" name="admin" value="on">
+  <p class="ajuda">Você é administrador e não pode remover o próprio papel.</p>
+  {% else %}
+  <label class="marcar"><input type="checkbox" name="admin" value="on"{% if admin %} checked{% endif %}> Administrador</label>
+  <p class="ajuda">Administradores também gerenciam os colaboradores.</p>
+  {% endif %}
+
+  <div class="botoes">
+    <button type="submit" class="botao">Salvar</button>
+    <a class="botao secundario" href="/colaboradores">Cancelar</a>
+  </div>
+</form>
+{% endblock %}

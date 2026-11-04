@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Redefinir senha{% endblock %}
+{% block content %}
+<h1>Redefinir senha</h1>
+<p>Colaborador: <strong>{{ target.display_name }}</strong> ({{ target.username }})</p>
+{% if let Some(msg) = error %}
+<p class="erro" role="alert">{{ msg }}</p>
+{% endif %}
+<form class="cartao formulario" method="post" action="/colaboradores/{{ target.id }}/senha">
+  <label for="senha">Nova senha</label>
+  <input id="senha" name="senha" type="password" autocomplete="new-password" minlength="8" required autofocus>
+  <p class="ajuda">Mínimo de 8 caracteres. Ao salvar, a pessoa é desconectada do app e do painel e precisa entrar de novo.</p>
+  <div class="botoes">
+    <button type="submit" class="botao">Salvar nova senha</button>
+    <a class="botao secundario" href="/colaboradores">Cancelar</a>
+  </div>
+</form>
+{% endblock %}

@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Colaboradores{% endblock %}
+{% block content %}
+<div class="cabecalho-pagina">
+  <h1>Colaboradores</h1>
+  <a class="botao" href="/colaboradores/novo">Novo colaborador</a>
+</div>
+{% if let Some(msg) = error %}
+<p class="erro" role="alert">{{ msg }}</p>
+{% endif %}
+<table class="tabela">
+  <thead>
+    <tr>
+      <th>Nome de exibição</th>
+      <th>Usuário</th>
+      <th>Papel</th>
+      <th>Situação</th>
+      <th>Ações</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for u in users %}
+    <tr>
+      <td>{{ u.display_name }}</td>
+      <td>{{ u.username }}</td>
+      <td>{% if u.is_admin %}Administrador{% else %}Colaborador{% endif %}</td>
+      <td>{% if u.active %}<span class="selo ok">Ativo</span>{% else %}<span class="selo off">Desativado</span>{% endif %}</td>
+      <td class="acoes">
+        <a class="botao secundario" href="/colaboradores/{{ u.id }}/editar">Editar</a>
+        <a class="botao secundario" href="/colaboradores/{{ u.id }}/senha">Redefinir senha</a>
+        {% if u.active %}
+        <form method="post" action="/colaboradores/{{ u.id }}/desativar" hx-boost="true" hx-confirm="Desativar {{ u.display_name }}? A pessoa será desconectada do app e do painel.">
+          <button type="submit" class="botao perigo">Desativar</button>
+        </form>
+        {% else %}
+        <form method="post" action="/colaboradores/{{ u.id }}/reativar">
+          <button type="submit" class="botao secundario">Reativar</button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

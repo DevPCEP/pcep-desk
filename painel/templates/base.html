@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Painel{% endblock %} – PCEP Desk</title>
+  <link rel="stylesheet" href="/static/painel.css">
+  <script src="/static/htmx.min.js" defer></script>
+</head>
+<body>
+  <header class="topo">
+    <a class="marca" href="/clientes">PCEP Desk</a>
+    <nav class="menu" aria-label="Menu principal">
+      <a href="/clientes"{% if active == "clientes" %} class="ativo" aria-current="page"{% endif %}>Clientes</a>
+      <a href="/historico"{% if active == "historico" %} class="ativo" aria-current="page"{% endif %}>Histórico</a>
+      <a href="/nao-vinculados"{% if active == "nao-vinculados" %} class="ativo" aria-current="page"{% endif %}>Não vinculados</a>
+      {% if user.is_admin %}
+      <a href="/colaboradores"{% if active == "colaboradores" %} class="ativo" aria-current="page"{% endif %}>Colaboradores</a>
+      {% endif %}
+    </nav>
+    <div class="usuario">
+      <span>{{ user.display_name }}</span>
+      <form method="post" action="/sair">
+        <button type="submit" class="botao secundario">Sair</button>
+      </form>
+    </div>
+  </header>
+  <main class="conteudo">
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>
