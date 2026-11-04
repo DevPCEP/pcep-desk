@@ -1,7 +1,14 @@
 use std::sync::Arc;
 
 use anyhow::Context;
-use painel::{auth::limiter::LoginLimiter, build_router, config::Config, db, state::AppState};
+use painel::{
+    auth::limiter::LoginLimiter,
+    build_router,
+    config::Config,
+    db,
+    state::AppState,
+    users::{self, UserError},
+};
 use tracing_subscriber::EnvFilter;
 
 #[tokio::main]
@@ -12,8 +19,50 @@ async fn main() -> anyhow::Result<()> {
         )
         .init();
 
-    // Subcomandos (ex.: `criar-admin`) entram em tasks seguintes; por ora só `serve`.
-    serve().await
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    match args.first().map(String::as_str) {
+        None => serve().await,
+        Some("criar-admin") => criar_admin(&args[1..]).await,
+        Some(outro) => anyhow::bail!(
+            "subcomando desconhecido: {outro} (use `criar-admin --usuario <u> --nome \"<nome>\"` ou nenhum para iniciar o servidor)"
+        ),
+    }
+}
+
+/// Valor da opção `--nome-da-opcao <valor>` nos argumentos.
+fn opcao<'a>(args: &'a [String], nome: &str) -> Option<&'a str> {
+    args.iter()
+        .position(|a| a == nome)
+        .and_then(|i| args.get(i + 1))
+        .map(String::as_str)
+}
+
+/// `painel criar-admin --usuario <u> --nome "<nome>"`; senha em `PAINEL_SENHA_ADMIN` ou stdin.
+async fn criar_admin(args: &[String]) -> anyhow::Result<()> {
+    let usuario = opcao(args, "--usuario").context("faltou --usuario <usuario>")?;
+    let nome = opcao(args, "--nome").context("faltou --nome \"<nome>\"")?;
+    let senha = match std::env::var("PAINEL_SENHA_ADMIN") {
+        Ok(s) if !s.is_empty() => s,
+        _ => {
+            eprintln!("Senha do administrador (PAINEL_SENHA_ADMIN não definida), digite e tecle Enter:");
+            let mut linha = String::new();
+            std::io::stdin()
+                .read_line(&mut linha)
+                .context("lendo a senha da entrada padrão")?;
+            linha.trim_end_matches(['\r', '\n']).to_string()
+        }
+    };
+
+    let config = Config::from_env()?;
+    let pool = db::connect(&config.db_url).await?;
+    match users::create(&pool, usuario, nome, &senha, true).await {
+        Ok(_) => {
+            println!("Administrador criado: {}", usuario.trim().to_lowercase());
+            Ok(())
+        }
+        Err(UserError::UsernameTaken) => anyhow::bail!("usuário já existe: {usuario}"),
+        Err(e) => anyhow::bail!("{e}"),
+    }
 }
 
 async fn serve() -> anyhow::Result<()> {
