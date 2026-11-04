@@ -90,7 +90,7 @@ Sucesso significa: qualquer colaborador consegue atender qualquer cliente, sem l
 - **Distribuição e atualização**: executáveis publicados em GitHub Releases do fork (que também cumpre a exigência de código-fonte da AGPL); o painel tem uma página de download com os links e o link do código-fonte. A verificação de atualização que aponta para o upstream é desligada ou redirecionada para os releases do fork.
 - **ID por computador**: comportamento do upstream mantido. Usuários diferentes do Windows no mesmo PC, ou portátil vs. instalado, podem ter IDs diferentes; cada ID é um "computador" na base. Sem derivar ID do hardware.
 - **Computadores desconhecidos**: IDs que aparecem no histórico ou no heartbeat sem vínculo ficam numa lista "não vinculados", com ação "vincular a um cliente". O cadastro é sempre confirmado por uma pessoa.
-- **Tentativas recusadas**: o registro de entrada do lado do cliente sai antes do login e só traz IP (`src/server/connection.rs:1527-1534`). Para registrar "quem tentou e não conseguiu", o app do colaborador também reporta suas tentativas ao painel.
+- **Tentativas recusadas** (adiado pelo usuário em 2026-11-04: o app do colaborador NÃO reporta tentativas nesta etapa; o histórico mostra "Não concluída" pelo lado do cliente, sem o nome de quem tentou): o registro de entrada do lado do cliente sai antes do login e só traz IP (`src/server/connection.rs:1527-1534`). Para registrar "quem tentou e não conseguiu", o app do colaborador também reporta suas tentativas ao painel.
 
 ## 7. Pontos de atenção conhecidos
 
