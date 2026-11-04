@@ -81,14 +81,14 @@ async fn login_device_moves_to_other_user() {
             json_req(
                 "POST",
                 "/api/login",
-                json!({"username": user, "password": "senha12345", "id": "555"}),
+                json!({"username": user, "password": "senha12345", "id": "555555"}),
                 None,
             ),
         )
         .await;
     }
     let owner: String = sqlx::query_scalar(
-        "SELECT u.username FROM user_devices d JOIN users u ON u.id = d.user_id WHERE d.peer_id = '555'",
+        "SELECT u.username FROM user_devices d JOIN users u ON u.id = d.user_id WHERE d.peer_id = '555555'",
     )
     .fetch_one(&app.pool)
     .await
@@ -150,13 +150,13 @@ async fn current_user_ok_and_401() {
         .to_string();
     let (status, _, body) = send(
         &app,
-        json_req("POST", "/api/currentUser", json!({"id": "777", "uuid": "u-2"}), Some(&token)),
+        json_req("POST", "/api/currentUser", json!({"id": "777777", "uuid": "u-2"}), Some(&token)),
     )
     .await;
     assert_eq!(status, 200);
     let v: Value = serde_json::from_str(&body).unwrap();
     assert_eq!(v["name"], "maria");
-    let n: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM user_devices WHERE peer_id = '777'")
+    let n: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM user_devices WHERE peer_id = '777777'")
         .fetch_one(&app.pool)
         .await
         .unwrap();
@@ -294,4 +294,65 @@ async fn login_username_too_long_is_rejected_early() {
     let app = setup().await;
     let v = login(&app, &"a".repeat(129), "senha12345").await;
     assert_eq!(v, json!({"error": "Usuário ou senha incorretos"}));
+}
+
+async fn login_with_id(app: &TestApp, user: &str, id: &str) {
+    let (status, _, body) = send(
+        app,
+        json_req(
+            "POST",
+            "/api/login",
+            json!({"username": user, "password": "senha12345", "id": id, "uuid": "u"}),
+            None,
+        ),
+    )
+    .await;
+    assert_eq!(status, 200);
+    let v: Value = serde_json::from_str(&body).unwrap();
+    assert_eq!(v["type"], "access_token", "login deve funcionar mesmo sem gravar o computador");
+}
+
+async fn user_devices(app: &TestApp) -> Vec<(String, String)> {
+    sqlx::query_as(
+        "SELECT d.peer_id, u.username FROM user_devices d JOIN users u ON u.id = d.user_id ORDER BY d.peer_id",
+    )
+    .fetch_all(&app.pool)
+    .await
+    .unwrap()
+}
+
+#[tokio::test]
+async fn login_with_client_computer_id_not_recorded() {
+    let app = setup().await;
+    sqlx::query("INSERT INTO clients (id, name, created_at) VALUES (1, 'Padaria', 1)")
+        .execute(&app.pool)
+        .await
+        .unwrap();
+    sqlx::query("INSERT INTO computers (client_id, peer_id, label, created_at) VALUES (1, '111222333', 'Caixa', 1)")
+        .execute(&app.pool)
+        .await
+        .unwrap();
+    // Também com formatação diferente do mesmo código.
+    login_with_id(&app, "maria", "111222333").await;
+    login_with_id(&app, "maria", "111 222 333").await;
+    assert!(user_devices(&app).await.is_empty());
+}
+
+#[tokio::test]
+async fn login_with_invalid_id_not_recorded() {
+    let app = setup().await;
+    for id in ["12", "abc", "x".repeat(40).as_str(), "12 34", "<script>alert(1)</script>"] {
+        login_with_id(&app, "maria", id).await;
+    }
+    assert!(user_devices(&app).await.is_empty());
+}
+
+#[tokio::test]
+async fn login_records_normalized_id() {
+    let app = setup().await;
+    login_with_id(&app, "maria", " 987 654 321 ").await;
+    assert_eq!(
+        user_devices(&app).await,
+        vec![("987654321".to_string(), "maria".to_string())]
+    );
 }

@@ -15,6 +15,7 @@ use crate::{
         login::{LoginFailure, authenticate},
         tokens::{TokenKind, issue_token, revoke_token},
     },
+    clients::normalize_peer_id,
     clock,
     error::ApiError,
     state::AppState,
@@ -85,15 +86,48 @@ async fn login(
 
 /// Associa o computador (código do RustDesk) ao colaborador. O computador
 /// pode passar a ser de outro colaborador, por isso o upsert.
+///
+/// O código vem do app e não é confiável: é normalizado e, se for inválido ou
+/// já for computador de um cliente (`computers`), não é gravado, para que um
+/// colaborador não reivindique o código de outro computador. A troca de dono
+/// entre colaboradores é permitida, mas fica registrada no log.
 async fn record_device(
     pool: &SqlitePool,
     user_id: i64,
     peer_id: &str,
     uuid: &str,
 ) -> sqlx::Result<()> {
-    let peer_id = peer_id.trim();
-    if peer_id.is_empty() {
+    let Some(peer_id) = normalize_peer_id(peer_id) else {
+        if !peer_id.trim().is_empty() {
+            tracing::warn!(user_id, "login com código de computador inválido: não gravado");
+        }
         return Ok(());
+    };
+    let is_client_computer: bool =
+        sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM computers WHERE peer_id = ?)")
+            .bind(&peer_id)
+            .fetch_one(pool)
+            .await?;
+    if is_client_computer {
+        tracing::warn!(
+            user_id,
+            peer_id = %peer_id,
+            "login com código de um computador de cliente: não gravado"
+        );
+        return Ok(());
+    }
+    let previous_owner: Option<i64> =
+        sqlx::query_scalar("SELECT user_id FROM user_devices WHERE peer_id = ?")
+            .bind(&peer_id)
+            .fetch_optional(pool)
+            .await?;
+    if let Some(previous) = previous_owner.filter(|p| *p != user_id) {
+        tracing::warn!(
+            peer_id = %peer_id,
+            previous_user_id = previous,
+            new_user_id = user_id,
+            "computador de colaborador trocou de dono"
+        );
     }
     sqlx::query(
         "INSERT INTO user_devices (peer_id, user_id, uuid, last_login_at) VALUES (?, ?, ?, ?)
@@ -102,7 +136,7 @@ async fn record_device(
            uuid = excluded.uuid,
            last_login_at = excluded.last_login_at",
     )
-    .bind(peer_id)
+    .bind(&peer_id)
     .bind(user_id)
     .bind(uuid)
     .bind(clock::now())
