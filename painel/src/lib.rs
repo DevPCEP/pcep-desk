@@ -2,6 +2,7 @@
 
 pub mod api;
 pub mod auth;
+pub mod clients;
 pub mod clock;
 pub mod config;
 pub mod connections;
