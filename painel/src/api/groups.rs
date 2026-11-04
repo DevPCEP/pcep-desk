@@ -24,12 +24,20 @@ pub fn router() -> Router<AppState> {
         .route("/device-group/accessible", get(empty_page))
 }
 
+/// Janela de paginação `(itens a pular, tamanho)` a partir de `current`
+/// (1-based) e `pageSize` (limitado a 100).
+pub(crate) fn page_window(current: Option<usize>, page_size: Option<usize>) -> (usize, usize) {
+    let size = page_size.unwrap_or(DEFAULT_PAGE_SIZE).clamp(1, MAX_PAGE_SIZE);
+    let skip = current.unwrap_or(1).max(1).saturating_sub(1).saturating_mul(size);
+    (skip, size)
+}
+
 #[derive(Deserialize)]
-struct PageQuery {
+pub(crate) struct PageQuery {
     /// Página, a partir de 1.
-    current: Option<usize>,
+    pub(crate) current: Option<usize>,
     #[serde(rename = "pageSize")]
-    page_size: Option<usize>,
+    pub(crate) page_size: Option<usize>,
 }
 
 async fn list_users(
@@ -42,8 +50,7 @@ async fn list_users(
         .into_iter()
         .filter(|u| u.active)
         .collect();
-    let size = q.page_size.unwrap_or(DEFAULT_PAGE_SIZE).clamp(1, MAX_PAGE_SIZE);
-    let skip = q.current.unwrap_or(1).max(1).saturating_sub(1).saturating_mul(size);
+    let (skip, size) = page_window(q.current, q.page_size);
     let data: Vec<Value> = active.iter().skip(skip).take(size).map(user_payload).collect();
     Ok(Json(json!({ "total": active.len(), "data": data })))
 }
