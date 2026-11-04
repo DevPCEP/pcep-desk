@@ -7,7 +7,7 @@
 use axum::{
     Router,
     body::Bytes,
-    extract::{State, rejection::BytesRejection},
+    extract::{DefaultBodyLimit, State, rejection::BytesRejection},
     http::StatusCode,
     routing::post,
 };
@@ -32,6 +32,8 @@ pub fn router() -> Router<AppState> {
         .route("/audit/conn", post(audit_conn))
         .route("/audit/file", post(audit_file))
         .route("/audit/alarm", post(audit_alarm))
+        // Mais restrito que os 64 KiB das demais rotas `/api` (a camada interna vence).
+        .layer(DefaultBodyLimit::max(super::UNAUTH_BODY_LIMIT))
 }
 
 #[derive(Clone, Copy)]

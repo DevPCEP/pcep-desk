@@ -4,7 +4,7 @@
 use axum::{
     Json, Router,
     body::Bytes,
-    extract::{State, rejection::BytesRejection},
+    extract::{DefaultBodyLimit, State, rejection::BytesRejection},
     http::StatusCode,
     routing::post,
 };
@@ -28,6 +28,8 @@ pub fn router() -> Router<AppState> {
         .route("/heartbeat", post(heartbeat))
         .route("/sysinfo", post(sysinfo))
         .route("/sysinfo_ver", post(sysinfo_ver))
+        // Mais restrito que os 64 KiB das demais rotas `/api` (a camada interna vence).
+        .layer(DefaultBodyLimit::max(super::UNAUTH_BODY_LIMIT))
 }
 
 /// Aceita string, número ou null (vira vazio); qualquer outro tipo vira vazio.
@@ -127,6 +129,8 @@ async fn sysinfo(
 }
 
 /// O app só compara com a versão guardada; resposta vazia = "sem novidade".
-async fn sysinfo_ver() -> StatusCode {
-    StatusCode::OK
+/// O corpo não é usado, mas é lido para que o limite de tamanho (413) valha aqui também.
+async fn sysinfo_ver(body: Result<Bytes, BytesRejection>) -> Result<StatusCode, ApiError> {
+    body.map_err(|rej| ApiError::new(rej.status(), "Requisição grande demais"))?;
+    Ok(StatusCode::OK)
 }
