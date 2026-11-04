@@ -96,14 +96,17 @@ async fn inactive_user_token_none() {
 #[test]
 fn limiter_blocks_after_five() {
     let l = LoginLimiter::new();
-    assert!(l.check("maria", 1000));
     for _ in 0..5 {
-        l.record_failure("maria", 1000);
+        assert!(l.try_acquire("maria", 1000));
     }
-    assert!(!l.check("maria", 1001));
-    assert!(l.check("maria", 1000 + 901));
-    l.record_failure("joao", 1000);
-    assert!(l.check("joao", 1001));
+    assert!(!l.try_acquire("maria", 1001));
+    assert!(!l.try_acquire("maria", 1899));
+    assert!(l.try_acquire("maria", 1000 + 901));
+    assert!(l.try_acquire("joao", 1000));
+    assert!(l.try_acquire("joao", 1001));
+    for _ in 0..3 {
+        assert!(l.try_acquire("ana", 1000));
+    }
     l.reset("maria");
-    assert!(l.check("maria", 1001));
+    assert!(l.try_acquire("maria", 1001));
 }

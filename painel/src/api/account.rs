@@ -23,6 +23,9 @@ use crate::{
     users::{self, User},
 };
 
+/// Tamanho máximo do nome de usuário aceito no login.
+const MAX_USERNAME_LEN: usize = 128;
+
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/login-options", get(login_options))
@@ -92,7 +95,12 @@ async fn login(
         return Ok(login_error("Método de login não suportado"));
     }
     let key = req.username.trim().to_lowercase();
-    if !st.limiter.check(&key, clock::now()) {
+    // Nomes enormes nem chegam ao limiter nem ao banco (evita chaves gigantes na memória).
+    if key.chars().count() > MAX_USERNAME_LEN {
+        return Ok(login_error("Usuário ou senha incorretos"));
+    }
+    // Atômico: já conta a tentativa, então requisições paralelas não furam o bloqueio.
+    if !st.limiter.try_acquire(&key, clock::now()) {
         return Ok(login_error("Muitas tentativas. Aguarde 15 minutos."));
     }
 
@@ -104,10 +112,7 @@ async fn login(
     let password_ok = verify_blocking(req.password, hash).await?;
     let user = match user {
         Some(u) if password_ok => u,
-        _ => {
-            st.limiter.record_failure(&key, clock::now());
-            return Ok(login_error("Usuário ou senha incorretos"));
-        }
+        _ => return Ok(login_error("Usuário ou senha incorretos")),
     };
     if !user.active {
         return Ok(login_error("Usuário desativado"));
@@ -172,9 +177,11 @@ async fn current_user(
 }
 
 /// Sempre 200 com corpo vazio, mesmo sem token ou com token inválido.
-async fn logout(State(st): State<AppState>, headers: HeaderMap) -> Result<StatusCode, ApiError> {
-    if let Some(token) = bearer_token(&headers) {
-        revoke_token(&st.pool, token).await?;
+async fn logout(State(st): State<AppState>, headers: HeaderMap) -> StatusCode {
+    if let Some(token) = bearer_token(&headers)
+        && let Err(e) = revoke_token(&st.pool, token).await
+    {
+        tracing::error!("falha ao revogar token no logout: {e}");
     }
-    Ok(StatusCode::OK)
+    StatusCode::OK
 }

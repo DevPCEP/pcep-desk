@@ -263,3 +263,35 @@ async fn oversize_body_rejected() {
     .await;
     assert_eq!(status, 413);
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn login_lockout_concurrent() {
+    let app = std::sync::Arc::new(setup().await);
+    let mut set = tokio::task::JoinSet::new();
+    for _ in 0..20 {
+        let app = app.clone();
+        set.spawn(async move { login(&app, "maria", "errada123").await });
+    }
+    let mut wrong = 0;
+    let mut blocked = 0;
+    while let Some(res) = set.join_next().await {
+        let v = res.unwrap();
+        match v["error"].as_str().unwrap() {
+            "Usuário ou senha incorretos" => wrong += 1,
+            "Muitas tentativas. Aguarde 15 minutos." => blocked += 1,
+            outro => panic!("erro inesperado: {outro}"),
+        }
+    }
+    assert!(wrong <= 5, "mais de 5 tentativas passaram: {wrong}");
+    assert_eq!(wrong + blocked, 20);
+    // bloqueado também para a senha certa
+    let v = login(&app, "maria", "senha12345").await;
+    assert_eq!(v, json!({"error": "Muitas tentativas. Aguarde 15 minutos."}));
+}
+
+#[tokio::test]
+async fn login_username_too_long_is_rejected_early() {
+    let app = setup().await;
+    let v = login(&app, &"a".repeat(129), "senha12345").await;
+    assert_eq!(v, json!({"error": "Usuário ou senha incorretos"}));
+}

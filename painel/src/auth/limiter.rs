@@ -7,7 +7,8 @@ const WINDOW_SECS: i64 = 900;
 
 /// Limitador de tentativas de login, por chave (username em minúsculas).
 ///
-/// 5 falhas dentro de 900 s bloqueiam até 900 s após a primeira falha da janela.
+/// 5 tentativas não bem-sucedidas dentro de 900 s bloqueiam até 900 s após a
+/// primeira tentativa da janela.
 #[derive(Debug, Default)]
 pub struct LoginLimiter {
     /// chave -> (início da janela, falhas na janela)
@@ -19,21 +20,20 @@ impl LoginLimiter {
         Self::default()
     }
 
-    /// `false` = bloqueado.
-    pub fn check(&self, key: &str, now: i64) -> bool {
-        let map = self.entries.lock().unwrap_or_else(|e| e.into_inner());
-        match map.get(key) {
-            Some(&(start, count)) => !(count >= MAX_FAILURES && now < start + WINDOW_SECS),
-            None => true,
-        }
-    }
-
-    pub fn record_failure(&self, key: &str, now: i64) {
+    /// Pede permissão para uma tentativa de login, de forma atômica: sob o
+    /// mutex verifica a janela e já conta a tentativa. `false` = bloqueado
+    /// (e a tentativa bloqueada não é contada). Quem loga com sucesso deve
+    /// chamar `reset`, o que desfaz a contagem.
+    pub fn try_acquire(&self, key: &str, now: i64) -> bool {
         let mut map = self.entries.lock().unwrap_or_else(|e| e.into_inner());
         // Descarta janelas vencidas para o mapa não crescer sem limite.
         map.retain(|_, &mut (start, _)| now < start + WINDOW_SECS);
         let entry = map.entry(key.to_string()).or_insert((now, 0));
+        if entry.1 >= MAX_FAILURES {
+            return false;
+        }
         entry.1 += 1;
+        true
     }
 
     pub fn reset(&self, key: &str) {
