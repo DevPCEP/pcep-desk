@@ -219,3 +219,9 @@ Versões: commit do app `__________`, execução do workflow `__________`.
 - [ ] **C.11 Sobre e nomes**
   - Fazer: abrir Configurações → Sobre no app da equipe.
   - Deve acontecer: "Pc&P Desk — baseado no RustDesk (AGPL-3.0)" e link do código-fonte; sem links para rustdesk.com (exceto o crédito "powered by").
+- [ ] **C.12 Executável renomeado não troca o servidor (Windows)**
+  - Fazer: copiar `PcepDesk-Windows-x64.exe` com o nome `PcepDesk-host=1.2.3.4,key=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=.exe` e abrir.
+  - Deve acontecer: continua aparecendo no painel do escritório (não usa 1.2.3.4).
+- [ ] **C.13 Colaborador desativado é barrado sem reiniciar o app**
+  - Fazer: com o app da equipe aberto e logado, desativar a colaboradora no painel; tentar conectar.
+  - Deve acontecer: aviso "Faça login no Pc&P Desk Equipe para conectar." e nenhuma conexão.
