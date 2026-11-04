@@ -10,6 +10,7 @@ pub mod connections;
 pub mod devices;
 pub mod db;
 pub mod error;
+pub mod maintenance;
 pub mod state;
 pub mod users;
 pub mod web;

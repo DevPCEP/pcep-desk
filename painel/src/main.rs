@@ -5,7 +5,7 @@ use painel::{
     auth::limiter::LoginLimiter,
     build_router,
     config::Config,
-    db,
+    db, maintenance,
     state::AppState,
     users::{self, UserError},
 };
@@ -79,6 +79,8 @@ async fn serve() -> anyhow::Result<()> {
     let config = Config::from_env()?;
     let pool = db::connect(&config.db_url).await?;
     let bind = config.bind.clone();
+    // Retenção de dados: já na inicialização e depois a cada 24 h.
+    maintenance::spawn(pool.clone());
     let state = AppState {
         pool,
         config: Arc::new(config),
