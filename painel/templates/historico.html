@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Histórico{% endblock %}
+{% block content %}
+<h1>Histórico de conexões</h1>
+{% if date_error %}
+<p class="erro" role="alert">Data inválida. Use o formato aaaa-mm-dd; o filtro com data inválida não foi aplicado.</p>
+{% endif %}
+<form class="filtros" method="get" action="/historico">
+  {% if let Some(list) = users %}
+  <div>
+    <label for="colaborador">Colaborador</label>
+    <select id="colaborador" name="colaborador">
+      <option value="">Todos</option>
+      {% for u in list %}
+      <option value="{{ u.id }}"{% if u.selected %} selected{% endif %}>{{ u.label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  {% endif %}
+  <div>
+    <label for="cliente">Cliente</label>
+    <select id="cliente" name="cliente">
+      <option value="">Todos</option>
+      {% for c in clients %}
+      <option value="{{ c.id }}"{% if c.selected %} selected{% endif %}>{{ c.label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div>
+    <label for="de">De</label>
+    <input id="de" name="de" type="date" value="{{ de }}">
+  </div>
+  <div>
+    <label for="ate">Até</label>
+    <input id="ate" name="ate" type="date" value="{{ ate }}">
+  </div>
+  <div class="botoes">
+    <button type="submit" class="botao">Filtrar</button>
+    <a class="botao secundario" href="/historico">Limpar</a>
+  </div>
+</form>
+
+{% if truncated %}
+<p class="aviso">Mostrando as 500 conexões mais recentes. Use os filtros para refinar.</p>
+{% endif %}
+{% if rows.is_empty() %}
+<p class="aviso">Nenhuma conexão encontrada.</p>
+{% else %}
+<table class="tabela">
+  <thead>
+    <tr>
+      <th>Início</th>
+      <th>Colaborador</th>
+      <th>Cliente – Computador</th>
+      <th>Tipo</th>
+      <th>Situação</th>
+      <th>Duração</th>
+      <th>IP</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in rows %}
+    <tr>
+      <td>{{ r.started }}</td>
+      <td>{{ r.operator }}</td>
+      <td>{{ r.computer }}</td>
+      <td>{{ r.kind }}</td>
+      <td>{{ r.status }}</td>
+      <td>{{ r.duration }}</td>
+      <td>{{ r.ip }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+{% endblock %}

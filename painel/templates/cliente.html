@@ -64,7 +64,10 @@
 </table>
 {% endif %}
 
-<h2>Últimas conexões</h2>
+<div class="cabecalho-pagina">
+  <h2>Últimas conexões</h2>
+  <a class="botao secundario" href="/historico?cliente={{ client.id }}">Ver histórico completo</a>
+</div>
 {% if history.is_empty() %}
 <p class="aviso">Nenhuma conexão registrada para este cliente.</p>
 {% else %}
