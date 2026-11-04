@@ -26,9 +26,7 @@ async fn download_links_point_to_latest_release() {
         "PcepDeskEquipe-Windows-x64.exe",
         "PcepDesk-Linux-x86_64.AppImage",
         "PcepDeskEquipe-Linux-x86_64.AppImage",
-        "PcepDesk-macOS-x64.dmg",
         "PcepDesk-macOS-arm64.dmg",
-        "PcepDeskEquipe-macOS-x64.dmg",
         "PcepDeskEquipe-macOS-arm64.dmg",
     ] {
         assert!(
@@ -61,7 +59,9 @@ async fn download_page_shows_instructions_and_brand() {
     let (_, _, body) = send(&app, get_req("/baixar", None)).await;
     assert!(body.contains("Pc&amp;P Desk"));
     assert!(!body.contains("PCEP Desk"));
-    assert!(body.contains("macOS (Intel)"));
+    // macOS Intel fora dos builds (runners escassos) — sem link quebrado na página
+    assert!(!body.contains("macOS-x64.dmg"));
+    assert!(body.contains("Macs com processador Intel"));
     assert!(body.contains("Linux (AppImage)"));
     assert!(body.contains("Permitir executar como programa"));
 }

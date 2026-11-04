@@ -16,7 +16,7 @@ const BASE_URL: &str = "https://github.com/DevPCEP/pcep-desk-app/releases/latest
 const SOURCE_URL: &str = "https://github.com/DevPCEP/pcep-desk-app";
 
 const WINDOWS_HELP: &str = "Se aparecer \"O Windows protegeu o computador\", clique em Mais informações → Executar assim mesmo.";
-const MACOS_HELP: &str = "Na primeira vez, clique com o botão direito no aplicativo → Abrir.";
+const MACOS_HELP: &str = "Na primeira vez, clique com o botão direito no aplicativo → Abrir. Macs com processador Intel ainda não são suportados.";
 const LINUX_HELP: &str = "Dê permissão de execução (botão direito → Propriedades → Permitir executar como programa) e abra.";
 
 /// Um entregável: rótulo da plataforma, nome exato do arquivo na release e instrução.
@@ -27,9 +27,9 @@ struct Entrega {
 }
 
 /// Entregáveis do Pc&P Desk (cliente). Nomes iguais aos do workflow do app.
-const CLIENTE: [Entrega; 4] = [
+/// macOS Intel fora dos builds desde 2026-11-04 (runners escassos).
+const CLIENTE: [Entrega; 3] = [
     Entrega { rotulo: "Windows", arquivo: "PcepDesk-Windows-x64.exe", ajuda: WINDOWS_HELP },
-    Entrega { rotulo: "macOS (Intel)", arquivo: "PcepDesk-macOS-x64.dmg", ajuda: MACOS_HELP },
     Entrega {
         rotulo: "macOS (Apple Silicon — M1/M2/M3/M4)",
         arquivo: "PcepDesk-macOS-arm64.dmg",
@@ -39,9 +39,8 @@ const CLIENTE: [Entrega; 4] = [
 ];
 
 /// Entregáveis do Pc&P Desk Equipe (colaborador).
-const EQUIPE: [Entrega; 4] = [
+const EQUIPE: [Entrega; 3] = [
     Entrega { rotulo: "Windows", arquivo: "PcepDeskEquipe-Windows-x64.exe", ajuda: WINDOWS_HELP },
-    Entrega { rotulo: "macOS (Intel)", arquivo: "PcepDeskEquipe-macOS-x64.dmg", ajuda: MACOS_HELP },
     Entrega {
         rotulo: "macOS (Apple Silicon — M1/M2/M3/M4)",
         arquivo: "PcepDeskEquipe-macOS-arm64.dmg",
