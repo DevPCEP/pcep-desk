@@ -1,0 +1,3 @@
+{$PAINEL_DOMINIO} {
+	reverse_proxy painel:8080
+}

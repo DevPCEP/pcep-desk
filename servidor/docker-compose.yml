@@ -1,0 +1,51 @@
+# PCEP Desk: servidor de conexão (hbbs/hbbr), painel e proxy HTTPS (Caddy).
+services:
+  # Servidor de ID/registro do RustDesk. Rede do host: o RustDesk precisa ver o IP real dos clientes.
+  hbbs:
+    image: rustdesk/rustdesk-server:1.1.16
+    command: hbbs -k _
+    network_mode: host
+    volumes:
+      - ./dados/rustdesk:/root
+    depends_on:
+      - hbbr
+    restart: unless-stopped
+
+  # Servidor de relay (retransmissão) do RustDesk.
+  hbbr:
+    image: rustdesk/rustdesk-server:1.1.16
+    command: hbbr -k _
+    network_mode: host
+    volumes:
+      - ./dados/rustdesk:/root
+    restart: unless-stopped
+
+  # Painel web e API. Não publica porta no servidor: só o Caddy o acessa, pela rede interna do compose.
+  painel:
+    build: ../painel
+    env_file: .env
+    # Roda com o mesmo usuário do servidor para poder gravar em ./dados/painel (veja PAINEL_UID no .env).
+    user: "${PAINEL_UID:-10001}:${PAINEL_GID:-10001}"
+    volumes:
+      - ./dados/painel:/dados
+    restart: unless-stopped
+
+  # Proxy HTTPS com certificado automático (Let's Encrypt).
+  caddy:
+    image: caddy:2
+    environment:
+      PAINEL_DOMINIO: ${PAINEL_DOMINIO:?defina PAINEL_DOMINIO no arquivo .env}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - painel
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:

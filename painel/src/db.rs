@@ -38,3 +38,21 @@ pub async fn connect(url: &str) -> anyhow::Result<SqlitePool> {
         .context("aplicando migrations")?;
     Ok(pool)
 }
+
+/// Grava uma cópia consistente do banco em `dest` (`VACUUM INTO`), sem parar o painel.
+///
+/// Recusa destino já existente, para nunca sobrescrever um backup anterior.
+pub async fn backup(pool: &SqlitePool, dest: &std::path::Path) -> anyhow::Result<()> {
+    if dest.exists() {
+        anyhow::bail!("o destino do backup já existe: {}", dest.display());
+    }
+    let dest_str = dest
+        .to_str()
+        .context("caminho de destino do backup não é UTF-8 válido")?;
+    sqlx::query("VACUUM INTO ?")
+        .bind(dest_str)
+        .execute(pool)
+        .await
+        .with_context(|| format!("gravando backup em {}", dest.display()))?;
+    Ok(())
+}

@@ -1,0 +1,7 @@
+target
+dados
+.git
+.gitignore
+.env
+Dockerfile
+.dockerignore

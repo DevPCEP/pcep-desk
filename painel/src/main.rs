@@ -23,8 +23,9 @@ async fn main() -> anyhow::Result<()> {
     match args.first().map(String::as_str) {
         None => serve().await,
         Some("criar-admin") => criar_admin(&args[1..]).await,
+        Some("backup") => backup(&args[1..]).await,
         Some(outro) => anyhow::bail!(
-            "subcomando desconhecido: {outro} (use `criar-admin --usuario <u> --nome \"<nome>\"` ou nenhum para iniciar o servidor)"
+            "subcomando desconhecido: {outro} (use `criar-admin --usuario <u> --nome \"<nome>\"`, `backup <destino>` ou nenhum para iniciar o servidor)"
         ),
     }
 }
@@ -63,6 +64,17 @@ async fn criar_admin(args: &[String]) -> anyhow::Result<()> {
         Err(UserError::UsernameTaken) => anyhow::bail!("usuário já existe: {usuario}"),
         Err(e) => anyhow::bail!("{e}"),
     }
+}
+
+/// `painel backup <destino>`: grava uma cópia consistente do banco configurado.
+async fn backup(args: &[String]) -> anyhow::Result<()> {
+    let destino = args.first().context("faltou o destino: painel backup <destino>")?;
+    let config = Config::from_env()?;
+    let pool = db::connect(&config.db_url).await?;
+    db::backup(&pool, std::path::Path::new(destino)).await?;
+    pool.close().await;
+    println!("Backup gravado em {destino}");
+    Ok(())
 }
 
 async fn serve() -> anyhow::Result<()> {
