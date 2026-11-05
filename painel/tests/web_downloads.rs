@@ -26,6 +26,8 @@ async fn download_links_point_to_latest_release() {
         "PcepDeskEquipe-Windows-x64.exe",
         "PcepDesk-Linux-x86_64.AppImage",
         "PcepDeskEquipe-Linux-x86_64.AppImage",
+        "PcepDesk-Linux-x86_64.deb",
+        "PcepDeskEquipe-Linux-x86_64.deb",
         "PcepDesk-macOS-arm64.dmg",
         "PcepDeskEquipe-macOS-arm64.dmg",
     ] {
@@ -63,6 +65,8 @@ async fn download_page_shows_instructions_and_brand() {
     assert!(!body.contains("macOS-x64.dmg"));
     assert!(body.contains("Macs com processador Intel"));
     assert!(body.contains("Linux (AppImage)"));
+    assert!(body.contains("Linux (.deb)"));
+    assert!(body.contains("sudo apt install"));
     assert!(body.contains("Permitir executar como programa"));
 }
 

@@ -18,6 +18,8 @@ const SOURCE_URL: &str = "https://github.com/DevPCEP/pcep-desk-app";
 const WINDOWS_HELP: &str = "Se aparecer \"O Windows protegeu o computador\", clique em Mais informações → Executar assim mesmo.";
 const MACOS_HELP: &str = "Na primeira vez, clique com o botão direito no aplicativo → Abrir. Macs com processador Intel ainda não são suportados.";
 const LINUX_HELP: &str = "Dê permissão de execução (botão direito → Propriedades → Permitir executar como programa) e abra.";
+const DEB_HELP: &str = "Ubuntu/Debian: baixe e rode sudo apt install ./PcepDesk-Linux-x86_64.deb (instala e inicia junto com o computador). Para usar sem instalar, prefira o AppImage.";
+const DEB_EQUIPE_HELP: &str = "Ubuntu/Debian: baixe e rode sudo apt install ./PcepDeskEquipe-Linux-x86_64.deb (instala e inicia junto com o computador). Para usar sem instalar, prefira o AppImage.";
 
 /// Um entregável: rótulo da plataforma, nome exato do arquivo na release e instrução.
 struct Entrega {
@@ -28,7 +30,7 @@ struct Entrega {
 
 /// Entregáveis do Pc&P Desk (cliente). Nomes iguais aos do workflow do app.
 /// macOS Intel fora dos builds desde 2026-11-04 (runners escassos).
-const CLIENTE: [Entrega; 3] = [
+const CLIENTE: [Entrega; 4] = [
     Entrega { rotulo: "Windows", arquivo: "PcepDesk-Windows-x64.exe", ajuda: WINDOWS_HELP },
     Entrega {
         rotulo: "macOS (Apple Silicon — M1/M2/M3/M4)",
@@ -36,10 +38,11 @@ const CLIENTE: [Entrega; 3] = [
         ajuda: MACOS_HELP,
     },
     Entrega { rotulo: "Linux (AppImage)", arquivo: "PcepDesk-Linux-x86_64.AppImage", ajuda: LINUX_HELP },
+    Entrega { rotulo: "Linux (.deb)", arquivo: "PcepDesk-Linux-x86_64.deb", ajuda: DEB_HELP },
 ];
 
 /// Entregáveis do Pc&P Desk Equipe (colaborador).
-const EQUIPE: [Entrega; 3] = [
+const EQUIPE: [Entrega; 4] = [
     Entrega { rotulo: "Windows", arquivo: "PcepDeskEquipe-Windows-x64.exe", ajuda: WINDOWS_HELP },
     Entrega {
         rotulo: "macOS (Apple Silicon — M1/M2/M3/M4)",
@@ -50,6 +53,11 @@ const EQUIPE: [Entrega; 3] = [
         rotulo: "Linux (AppImage)",
         arquivo: "PcepDeskEquipe-Linux-x86_64.AppImage",
         ajuda: LINUX_HELP,
+    },
+    Entrega {
+        rotulo: "Linux (.deb)",
+        arquivo: "PcepDeskEquipe-Linux-x86_64.deb",
+        ajuda: DEB_EQUIPE_HELP,
     },
 ];
 
