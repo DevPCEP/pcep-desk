@@ -229,3 +229,33 @@ Versões: commit do app `9cfcce31f`, execução do workflow `42012308636`.
 **Resultado da Parte C (2026-11-05):** todos os itens conforme, testados com o app da equipe no Linux e o cliente em um PC Windows 10 físico.
 - C.8: testado com o app sem instalar; ao fechar a janela, o app encerra e a conexão é recusada (esperado).
 - Divergência de ambiente (pendência, não bloqueia): na VM Windows, depois do Aceitar, a janela do cliente trava (só aparece na barra de tarefas) e o colaborador fica em "aguardando aceite"; o Windows fecha a conexão ~1min30 depois. No PC físico funciona. Suspeita: VM sem aceleração de vídeo ou regressão do RustDesk 1.5.x em VM; falta o log da VM.
+
+---
+
+## Parte D: acabamento (Plano 3)
+
+Mesmo ambiente da Parte C. Apps da execução do workflow com `variante=ambas` (de preferência com `assinatura_teste=true`) depois do Plano 3.
+
+Versões: commit do app `__________`, execução do workflow `__________`.
+
+- [ ] **D.1 `.deb` do cliente no Linux**
+  - Fazer: `sudo apt install ./PcepDesk-Linux-x86_64.deb`; abrir pelo menu.
+  - Deve acontecer: aparece no menu como "Pc&P Desk", com o ícone do escritório; `systemctl status pcepdesk` mostra o serviço ativo; o computador aparece no painel.
+- [ ] **D.2 `.deb` do colaborador convive com os outros**
+  - Fazer: instalar `PcepDeskEquipe-Linux-x86_64.deb` na mesma máquina que já tem o do cliente e o RustDesk original.
+  - Deve acontecer: os três abrem e funcionam, cada um com seu nome e ícone.
+- [ ] **D.3 Remoção**
+  - Fazer: `sudo apt remove pcepdesk`.
+  - Deve acontecer: o serviço `pcepdesk` some, o atalho sai do menu; o app da equipe e o RustDesk original continuam instalados.
+- [ ] **D.4 Textos com o nome de exibição**
+  - Fazer: passar o mouse no ícone da bandeja; ver a barra de abas de uma conexão; ver a tela de impressora em Configurações (Windows).
+  - Deve acontecer: aparece "Pc&P Desk" (ou "Pc&P Desk Equipe"), nunca "PcepDesk" nem "RustDesk" (exceto o crédito "powered by RustDesk").
+- [ ] **D.5 Título da janela no Windows**
+  - Fazer: abrir o app no Windows; olhar a barra de tarefas e o Alt+Tab; receber um pedido de conexão.
+  - Deve acontecer: "Pc&P Desk" na janela principal e "Pc&P Desk - Connection Manager" na janela de aceite.
+- [ ] **D.6 Abrir de novo traz a janela existente (Windows)**
+  - Fazer: com o app aberto, dar dois cliques no `.exe` de novo.
+  - Deve acontecer: a janela que já estava aberta vem para a frente; não abre uma segunda.
+- [ ] **D.7 Assinatura de teste (só se a execução usou `assinatura_teste=true`)**
+  - Fazer: no Windows, botão direito no `.exe` → Propriedades.
+  - Deve acontecer: existe a aba "Assinaturas digitais", com o certificado de teste "não confiável". É esperado: só um certificado comprado tira o aviso do Windows.
