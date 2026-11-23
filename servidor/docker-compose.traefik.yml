@@ -1,0 +1,20 @@
+# PCEP Desk atrás de um Traefik que já roda no servidor (por exemplo, a VPS da
+# Evolution API). Este arquivo complementa o docker-compose.yml: diz ao
+# Traefik, por labels, como publicar o painel em HTTPS. O Caddy fica desligado
+# (não ative o perfil "caddy" junto com este arquivo).
+#
+# Pressupõe o Traefik com o provedor Docker e em rede do host (network_mode:
+# host), como na VPS da Hostinger: assim ele alcança o painel direto pelo IP do
+# container na rede do compose, sem rede compartilhada.
+#
+# Ativação: no .env, COMPOSE_FILE=docker-compose.yml:docker-compose.traefik.yml
+# e os valores TRAEFIK_* conforme a configuração do Traefik existente.
+services:
+  painel:
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.pcep-painel.rule=Host(`${PAINEL_DOMINIO:?defina PAINEL_DOMINIO no arquivo .env}`)
+      - traefik.http.routers.pcep-painel.entrypoints=${TRAEFIK_ENTRYPOINT:?defina TRAEFIK_ENTRYPOINT no arquivo .env}
+      - traefik.http.routers.pcep-painel.tls=true
+      - traefik.http.routers.pcep-painel.tls.certresolver=${TRAEFIK_CERTRESOLVER:?defina TRAEFIK_CERTRESOLVER no arquivo .env}
+      - traefik.http.services.pcep-painel.loadbalancer.server.port=8080

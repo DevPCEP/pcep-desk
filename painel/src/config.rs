@@ -20,7 +20,7 @@ impl Config {
         let bind = get("PAINEL_ENDERECO").unwrap_or_else(|| "0.0.0.0:8080".to_string());
         let public_url = get("PAINEL_URL_PUBLICA")
             .filter(|v| !v.trim().is_empty())
-            .context("variável PAINEL_URL_PUBLICA é obrigatória (ex.: https://desk.pcepcontabil.com.br)")?;
+            .context("variável PAINEL_URL_PUBLICA é obrigatória (ex.: https://desk.pcepcenter.com.br)")?;
         let public_url = public_url.trim().trim_end_matches('/').to_string();
         let cookie_secure = match get("PAINEL_COOKIE_SEGURO") {
             None => true,

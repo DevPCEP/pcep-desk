@@ -30,9 +30,12 @@ services:
       - ./dados/painel:/dados
     restart: unless-stopped
 
-  # Proxy HTTPS com certificado automático (Let's Encrypt).
+  # Proxy HTTPS com certificado automático (Let's Encrypt). Só sobe com o perfil
+  # "caddy" (COMPOSE_PROFILES=caddy no .env). Em servidor que já tem Traefik nas
+  # portas 80/443, use docker-compose.traefik.yml no lugar dele (veja o README).
   caddy:
     image: caddy:2
+    profiles: ["caddy"]
     environment:
       PAINEL_DOMINIO: ${PAINEL_DOMINIO:?defina PAINEL_DOMINIO no arquivo .env}
     ports:

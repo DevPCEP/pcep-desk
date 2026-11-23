@@ -11,7 +11,7 @@ Este diretório tem tudo o que é preciso para colocar no ar:
 ## 1. Requisitos
 
 - Um servidor Linux (VPS ou máquina no escritório) com **Docker** e **Docker Compose v2** instalados. Instalação oficial: <https://docs.docker.com/engine/install/>. Para conferir, rode `docker compose version`: deve mostrar a versão (2.x) sem erro.
-- Um **domínio** (por exemplo `desk.pcepcontabil.com.br`) cujo DNS você consiga editar.
+- Um **domínio** (por exemplo `desk.pcepcenter.com.br`) cujo DNS você consiga editar.
 - `git` para baixar e atualizar o projeto.
 
 ## 2. Portas a liberar
@@ -24,15 +24,34 @@ Libere no firewall do servidor (e, se for o servidor do escritório, também no 
 | 21116 | UDP | RustDesk (registro e descoberta) |
 | 80 e 443 | TCP | Painel em HTTPS (o 80 é usado para emitir o certificado) |
 
+### 2.1. Servidor que já tem Traefik (ex.: VPS da Evolution API)
+
+Se as portas 80 e 443 já estiverem ocupadas por um Traefik (confira com `sudo ss -tlnp | grep -E ':(80|443) '`), o Caddy não consegue subir. Nesse caso o painel é publicado pelo próprio Traefik:
+
+1. Descubra a configuração do Traefik:
+
+   ```bash
+   docker inspect traefik-traefik-1 --format '{{json .HostConfig.NetworkMode}}'   # deve ser "host"
+   docker inspect traefik-traefik-1 --format '{{json .Args}}' | tr ',' '\n'
+   ```
+
+   Nos argumentos, o entrypoint da porta 443 (`--entrypoints.<NOME>.address=:443`) vai em `TRAEFIK_ENTRYPOINT` e o resolvedor de certificados (`--certificatesresolvers.<NOME>.acme...`) em `TRAEFIK_CERTRESOLVER`. Na VPS da Hostinger são `websecure` e `letsencrypt`. O `docker-compose.traefik.yml` pressupõe o Traefik em rede do host (`"host"` no primeiro comando); se não for, o painel precisa entrar na rede do Traefik.
+
+2. No `.env`, comente `COMPOSE_PROFILES=caddy` e descomente a opção B (`COMPOSE_FILE` e as duas variáveis `TRAEFIK_*`).
+
+3. Confira com `docker compose config`: o serviço `caddy` não deve aparecer e o `painel` deve ter as labels `traefik.*`.
+
+As portas do RustDesk (21115 a 21119) continuam iguais: o hbbs e o hbbr não passam pelo Traefik. Na Hostinger, libere-as também no **firewall do hPanel** (VPS → Segurança → Firewall), além do firewall do próprio servidor, se houver. Nesse modo, `docker compose ps` mostra **três** serviços (sem o `caddy`).
+
 ## 3. DNS
 
-- **VPS:** crie um registro **A** do domínio (`desk.pcepcontabil.com.br`) apontando para o IP da VPS.
+- **VPS:** crie um registro **A** do domínio (`desk.pcepcenter.com.br`) apontando para o IP da VPS.
 - **Servidor no escritório:**
   - se o provedor der **IP fixo**, crie um registro **A** para esse IP;
   - se o IP mudar, use um serviço de **DDNS** (por exemplo No-IP ou DuckDNS), que dá um nome como `escritorio.ddns.net`, e crie um registro **CNAME** do seu domínio para esse nome;
   - no **roteador**, faça o redirecionamento (port forwarding) das portas da tabela acima para o IP interno do servidor, e deixe esse IP interno fixo.
 
-Confira antes de continuar: `dig +short desk.pcepcontabil.com.br` (ou `nslookup desk.pcepcontabil.com.br`) deve mostrar o IP certo. Não use `ping` para isso: ele pode ser bloqueado e não prova que o DNS está certo. Sem o DNS correto o Caddy não consegue emitir o certificado.
+Confira antes de continuar: `dig +short desk.pcepcenter.com.br` (ou `nslookup desk.pcepcenter.com.br`) deve mostrar o IP certo. Não use `ping` para isso: ele pode ser bloqueado e não prova que o DNS está certo. Sem o DNS correto o Caddy não consegue emitir o certificado.
 
 ## 4. Configuração
 
@@ -59,7 +78,7 @@ mkdir -p dados/painel/backups dados/rustdesk
 
 ```bash
 docker compose up -d --build
-docker compose ps          # os quatro serviços devem estar "running"
+docker compose ps          # hbbs, hbbr, painel e caddy "running" (sem caddy no modo Traefik)
 ```
 
 A primeira vez demora, porque o painel é compilado. Para ver os logs: `docker compose logs -f painel`.
@@ -100,8 +119,8 @@ O `backup.sh` reaplica essa permissão a cada execução.
 
 No RustDesk original (instalado em um computador de teste), abra **Configurações → Rede** (pode ser preciso clicar no cadeado para desbloquear) e preencha:
 
-- **Servidor de ID** e **Servidor de relay**: o domínio, por exemplo `desk.pcepcontabil.com.br`;
-- **Servidor de API**: `https://desk.pcepcontabil.com.br`;
+- **Servidor de ID** e **Servidor de relay**: o domínio, por exemplo `desk.pcepcenter.com.br`;
+- **Servidor de API**: `https://desk.pcepcenter.com.br`;
 - **Chave**: o conteúdo do arquivo `id_ed25519.pub`.
 
 Depois clique em **OK**. Se o indicador de status na tela inicial ficar verde ("Pronto"), o computador está registrado no seu servidor. Para entrar com a conta do painel, use o login do RustDesk (usuário e senha cadastrados no painel).
@@ -145,7 +164,7 @@ As rotas que o aplicativo usa sem login (`/api/heartbeat`, `/api/sysinfo` e `/ap
 - **Firewall do servidor (nftables ou ufw):** limite novas conexões por IP nas portas 80 e 443. Exemplo com nftables: `tcp dport { 80, 443 } ct state new meter limite-web { ip saddr limit rate over 30/second } drop`.
 - **Caddy com o plugin `rate_limit`** (por exemplo `github.com/mholt/caddy-ratelimit`): exige gerar uma imagem do Caddy com o plugin (`xcaddy build --with github.com/mholt/caddy-ratelimit`) e configurar o limite no `Caddyfile`.
 
-**Histórico indicativo:** os eventos de histórico (`audit/conn`) só são aceitos de um computador que acabou de mandar heartbeat do mesmo IP, o que dificulta forjar registros, mas o **nome do colaborador é informado pelo próprio aplicativo** (decisão do desenho). Trate o histórico como indicativo, não como prova. O IP de origem vem do cabeçalho `X-Forwarded-For` acrescentado pelo Caddy; por isso o painel **nunca deve ser publicado diretamente** (o `docker-compose.yml` já não abre a porta dele).
+**Histórico indicativo:** os eventos de histórico (`audit/conn`) só são aceitos de um computador que acabou de mandar heartbeat do mesmo IP, o que dificulta forjar registros, mas o **nome do colaborador é informado pelo próprio aplicativo** (decisão do desenho). Trate o histórico como indicativo, não como prova. O IP de origem vem do cabeçalho `X-Forwarded-For` acrescentado pelo proxy (Caddy ou Traefik); por isso o painel **nunca deve ser publicado diretamente** (o `docker-compose.yml` já não abre a porta dele).
 
 ## 11. Atualização
 
@@ -160,6 +179,6 @@ Os dados ficam na pasta `dados/` e não são perdidos na atualização. Faça um
 
 ## Problemas comuns
 
-- **Caddy não emite o certificado:** confira o DNS (seção 3) e se as portas 80 e 443 estão liberadas.
+- **Caddy não emite o certificado:** confira o DNS (seção 3) e se as portas 80 e 443 estão liberadas. No modo Traefik, veja os logs dele (`docker logs traefik-traefik-1`) e confira `TRAEFIK_CERTRESOLVER`.
 - **Painel não grava no banco (erro de permissão):** confira `PAINEL_UID`/`PAINEL_GID` no `.env` e a dona da pasta `dados/painel` (`ls -ld dados/painel`). Depois `docker compose up -d --force-recreate painel`.
 - **RustDesk não conecta:** confira a chave (sem espaços extras) e as portas da seção 2, inclusive a UDP 21116.
