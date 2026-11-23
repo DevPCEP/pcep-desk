@@ -11,7 +11,9 @@ async fn download_page_public() {
     let (status, _, body) = send(&app, get_req("/baixar", None)).await;
     assert_eq!(status, 200);
     assert!(body.contains("Para clientes"));
-    assert!(body.contains("Para a equipe"));
+    // Sem login, a parte da equipe não aparece (nem os links do app da equipe).
+    assert!(!body.contains("Para a equipe"));
+    assert!(!body.contains("PcepDeskEquipe"));
     // Página pública: sem o menu de usuário logado.
     assert!(!body.contains("Sair"));
     assert!(!body.contains("href=\"/historico\""));
@@ -23,12 +25,33 @@ async fn download_links_point_to_latest_release() {
     let (_, _, body) = send(&app, get_req("/baixar", None)).await;
     for nome in [
         "PcepDesk-Windows-x64.exe",
-        "PcepDeskEquipe-Windows-x64.exe",
         "PcepDesk-Linux-x86_64.AppImage",
-        "PcepDeskEquipe-Linux-x86_64.AppImage",
         "PcepDesk-Linux-x86_64.deb",
-        "PcepDeskEquipe-Linux-x86_64.deb",
         "PcepDesk-macOS-arm64.dmg",
+    ] {
+        assert!(
+            body.contains(&format!("{BASE}{nome}")),
+            "link ausente: {nome}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn logged_user_also_sees_team_downloads() {
+    let app = test_app().await;
+    users::create(&app.pool, "maria", "Maria", "senha12345", false)
+        .await
+        .unwrap();
+    let cookie = web_login(&app, "maria", "senha12345").await;
+    let (status, _, body) = send(&app, get_req("/baixar", Some(&cookie))).await;
+    assert_eq!(status, 200);
+    assert!(body.contains("Para clientes"));
+    assert!(body.contains("Para a equipe"));
+    for nome in [
+        "PcepDesk-Windows-x64.exe",
+        "PcepDeskEquipe-Windows-x64.exe",
+        "PcepDeskEquipe-Linux-x86_64.AppImage",
+        "PcepDeskEquipe-Linux-x86_64.deb",
         "PcepDeskEquipe-macOS-arm64.dmg",
     ] {
         assert!(
@@ -36,6 +59,16 @@ async fn download_links_point_to_latest_release() {
             "link ausente: {nome}"
         );
     }
+}
+
+#[tokio::test]
+async fn invalid_session_sees_public_page() {
+    let app = test_app().await;
+    let (status, _, body) = send(&app, get_req("/baixar", Some("token-invalido"))).await;
+    // Cookie inválido não redireciona: mostra a página pública, sem a equipe.
+    assert_eq!(status, 200);
+    assert!(body.contains("Para clientes"));
+    assert!(!body.contains("Para a equipe"));
 }
 
 #[tokio::test]

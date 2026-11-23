@@ -1,13 +1,18 @@
 //! Página pública de download do Pc&P Desk (cliente e equipe).
 //!
 //! Fica fora do login de propósito: o colaborador manda o link ao cliente.
-//! Os arquivos vêm da última release do repositório do app.
+//! Sem login, mostra só o app do cliente; o app da equipe aparece apenas para
+//! quem está logado no painel. Os arquivos vêm da última release do app.
 
 use askama::Template;
 use askama_web::WebTemplate;
-use axum::{Router, routing::get};
+use axum::{Router, extract::State, http::HeaderMap, routing::get};
 
-use crate::state::AppState;
+use crate::{
+    auth::tokens::{TokenKind, resolve_token},
+    state::AppState,
+    web::session::session_token,
+};
 
 /// Base dos links: sempre a última release publicada.
 const BASE_URL: &str = "https://github.com/DevPCEP/pcep-desk-app/releases/latest/download/";
@@ -83,6 +88,7 @@ fn links(entregas: &[Entrega]) -> Vec<Link> {
 #[template(path = "baixar.html")]
 struct DownloadPage {
     cliente: Vec<Link>,
+    /// Vazia sem login: a seção da equipe não aparece.
     equipe: Vec<Link>,
     source_url: &'static str,
 }
@@ -91,10 +97,22 @@ pub fn router() -> Router<AppState> {
     Router::new().route("/baixar", get(download_page))
 }
 
-async fn download_page() -> DownloadPage {
+async fn download_page(State(st): State<AppState>, headers: HeaderMap) -> DownloadPage {
+    // Sessão opcional: sem cookie, com cookie inválido ou com erro ao conferir,
+    // a página continua pública (só o app do cliente), sem redirecionar.
+    let logged = match session_token(&headers) {
+        Some(token) => match resolve_token(&st.pool, token, TokenKind::Web).await {
+            Ok(user) => user.is_some(),
+            Err(e) => {
+                tracing::error!("erro ao resolver sessão na página de download: {e}");
+                false
+            }
+        },
+        None => false,
+    };
     DownloadPage {
         cliente: links(&CLIENTE),
-        equipe: links(&EQUIPE),
+        equipe: if logged { links(&EQUIPE) } else { Vec::new() },
         source_url: SOURCE_URL,
     }
 }

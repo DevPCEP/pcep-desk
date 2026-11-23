@@ -30,6 +30,7 @@
       </ul>
     </section>
 
+    {% if !equipe.is_empty() %}
     <section class="cartao secao-download">
       <h2>Para a equipe (Pc&amp;P Desk Equipe)</h2>
       <ul class="downloads">
@@ -41,6 +42,7 @@
         {% endfor %}
       </ul>
     </section>
+    {% endif %}
 
     <p class="ajuda rodape"><a href="{{ source_url }}">Código-fonte</a></p>
   </main>
