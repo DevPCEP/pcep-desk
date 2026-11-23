@@ -66,6 +66,12 @@ const EQUIPE: [Entrega; 4] = [
     },
 ];
 
+/// Os .dmg do macOS ainda não saem no build (o GitHub está sem máquina Mac arm64
+/// disponível). Enquanto for `false`, a página esconde os itens de macOS para o
+/// cliente não cair num link quebrado; troque para `true` quando a release
+/// passar a ter os .dmg.
+const MACOS_DISPONIVEL: bool = false;
+
 /// Link já montado, pronto para o template.
 struct Link {
     rotulo: &'static str,
@@ -76,6 +82,7 @@ struct Link {
 fn links(entregas: &[Entrega]) -> Vec<Link> {
     entregas
         .iter()
+        .filter(|e| MACOS_DISPONIVEL || !e.arquivo.ends_with(".dmg"))
         .map(|e| Link {
             rotulo: e.rotulo,
             url: format!("{BASE_URL}{}", e.arquivo),
