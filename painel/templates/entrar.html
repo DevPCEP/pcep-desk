@@ -1,12 +1,18 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-theme="light">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+{% include "partes/cabeca.html" %}
   <title>Entrar – Pc&amp;P Desk</title>
-  <link rel="stylesheet" href="/static/painel.css">
+  <script src="/static/painel.js" defer></script>
 </head>
-<body class="pagina-entrar">
+<body class="tela-avulsa">
+  <div class="topo-avulso">
+    {% include "partes/tema.html" %}
+  </div>
+  <div class="marca-avulsa">
+    {% include "partes/logo.html" %}
+    <span class="nome-sistema">Desk</span>
+  </div>
   <main class="cartao entrar">
     <h1>Pc&amp;P Desk</h1>
     <p class="ajuda">Entre com seu usuário e senha.</p>

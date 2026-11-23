@@ -1,17 +1,20 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-theme="light">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+{% include "partes/cabeca.html" %}
   <title>Baixar – Pc&amp;P Desk</title>
-  <link rel="stylesheet" href="/static/painel.css">
+  <script src="/static/painel.js" defer></script>
 </head>
-<body>
-  <header class="topo">
-    <span class="marca">Pc&amp;P Desk</span>
-    <nav class="menu" aria-label="Menu"><a href="/clientes">Painel do escritório</a></nav>
-  </header>
-  <main class="conteudo">
+<body class="tela-avulsa">
+  <div class="topo-avulso">
+    <a class="botao secundario" href="/clientes">Painel do escritório</a>
+    {% include "partes/tema.html" %}
+  </div>
+  <div class="marca-avulsa">
+    {% include "partes/logo.html" %}
+    <span class="nome-sistema">Desk</span>
+  </div>
+  <main class="baixar">
     <h1>Baixar o Pc&amp;P Desk</h1>
     <p class="ajuda">Escolha a versão do seu computador. Depois de baixar, abra o arquivo e siga as instruções abaixo.</p>
 
@@ -39,7 +42,7 @@
       </ul>
     </section>
 
-    <p class="ajuda"><a href="{{ source_url }}">Código-fonte</a></p>
+    <p class="ajuda rodape"><a href="{{ source_url }}">Código-fonte</a></p>
   </main>
 </body>
 </html>

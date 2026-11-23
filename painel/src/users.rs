@@ -15,6 +15,26 @@ pub struct User {
     pub active: bool,
 }
 
+impl User {
+    /// Iniciais para o avatar da barra lateral: primeira letra da primeira e da
+    /// última palavra do nome de exibição (ignora palavras que não começam com
+    /// letra ou número, como o "–" de "Maria – PCEP"); "?" se não houver nenhuma.
+    pub fn initials(&self) -> String {
+        let firsts: Vec<char> = self
+            .display_name
+            .split_whitespace()
+            .filter_map(|w| w.chars().next())
+            .filter(|c| c.is_alphanumeric())
+            .collect();
+        let chosen = match firsts.as_slice() {
+            [] => return "?".to_string(),
+            [one] => vec![*one],
+            [first, .., last] => vec![*first, *last],
+        };
+        chosen.into_iter().flat_map(char::to_uppercase).collect()
+    }
+}
+
 #[derive(Debug)]
 pub enum UserError {
     UsernameTaken,
@@ -187,4 +207,39 @@ pub async fn set_active(pool: &SqlitePool, id: i64, active: bool) -> sqlx::Resul
             .await?;
     }
     tx.commit().await
+}
+
+#[cfg(test)]
+mod initials_tests {
+    use super::User;
+
+    fn user(name: &str) -> User {
+        User {
+            id: 1,
+            username: "u".into(),
+            display_name: name.into(),
+            email: String::new(),
+            is_admin: false,
+            active: true,
+        }
+    }
+
+    #[test]
+    fn primeira_e_ultima_palavra() {
+        assert_eq!(user("Richard Franklin").initials(), "RF");
+        assert_eq!(user("ana maria de souza").initials(), "AS");
+    }
+
+    #[test]
+    fn uma_palavra_e_simbolos() {
+        assert_eq!(user("Franklin").initials(), "F");
+        assert_eq!(user("Maria – PCEP").initials(), "MP");
+        assert_eq!(user("élida").initials(), "É");
+    }
+
+    #[test]
+    fn nome_vazio() {
+        assert_eq!(user("").initials(), "?");
+        assert_eq!(user(" – ").initials(), "?");
+    }
 }
