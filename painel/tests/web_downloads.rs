@@ -27,6 +27,7 @@ async fn download_links_point_to_latest_release() {
         "PcepDesk-Windows-x64.exe",
         "PcepDesk-Linux-x86_64.AppImage",
         "PcepDesk-Linux-x86_64.deb",
+        "PcepDesk-macOS-arm64.dmg",
     ] {
         assert!(
             body.contains(&format!("{BASE}{nome}")),
@@ -51,6 +52,7 @@ async fn logged_user_also_sees_team_downloads() {
         "PcepDeskEquipe-Windows-x64.exe",
         "PcepDeskEquipe-Linux-x86_64.AppImage",
         "PcepDeskEquipe-Linux-x86_64.deb",
+        "PcepDeskEquipe-macOS-arm64.dmg",
     ] {
         assert!(
             body.contains(&format!("{BASE}{nome}")),
@@ -92,9 +94,10 @@ async fn download_page_shows_instructions_and_brand() {
     let (_, _, body) = send(&app, get_req("/baixar", None)).await;
     assert!(body.contains("Pc&amp;P Desk"));
     assert!(!body.contains("PCEP Desk"));
-    // macOS fora da página enquanto a release não tiver o .dmg (sem link quebrado)
-    assert!(!body.contains(".dmg"));
-    assert!(!body.contains("macOS"));
+    // macOS Apple Silicon na página; Intel fora dos builds (sem link quebrado)
+    assert!(body.contains("PcepDesk-macOS-arm64.dmg"));
+    assert!(!body.contains("macOS-x64.dmg"));
+    assert!(body.contains("Macs com processador Intel"));
     assert!(body.contains("Linux (AppImage)"));
     assert!(body.contains("Linux (.deb)"));
     assert!(body.contains("sudo apt install"));
@@ -112,17 +115,4 @@ async fn menu_has_download_link_for_logged_user() {
     assert_eq!(status, 200);
     assert!(body.contains("href=\"/baixar\""));
     assert!(body.contains("Pc&amp;P Desk"));
-}
-
-#[tokio::test]
-async fn logged_user_sees_no_macos_while_unavailable() {
-    let app = test_app().await;
-    users::create(&app.pool, "maria", "Maria", "senha12345", false)
-        .await
-        .unwrap();
-    let cookie = web_login(&app, "maria", "senha12345").await;
-    let (_, _, body) = send(&app, get_req("/baixar", Some(&cookie))).await;
-    assert!(body.contains("Para a equipe"));
-    assert!(!body.contains(".dmg"));
-    assert!(!body.contains("macOS"));
 }

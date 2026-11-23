@@ -66,11 +66,10 @@ const EQUIPE: [Entrega; 4] = [
     },
 ];
 
-/// Os .dmg do macOS ainda não saem no build (o GitHub está sem máquina Mac arm64
-/// disponível). Enquanto for `false`, a página esconde os itens de macOS para o
-/// cliente não cair num link quebrado; troque para `true` quando a release
-/// passar a ter os .dmg.
-const MACOS_DISPONIVEL: bool = false;
+/// Se a release publicada tem os .dmg do macOS. Com `false`, a página esconde os
+/// itens de macOS para ninguém cair num link quebrado (foi o caso da pcep-v1.0.0,
+/// quando o GitHub não entregava máquina Mac). Os .dmg voltaram na pcep-v1.0.1.
+const MACOS_DISPONIVEL: bool = true;
 
 /// Link já montado, pronto para o template.
 struct Link {
